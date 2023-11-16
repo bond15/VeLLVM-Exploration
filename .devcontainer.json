@@ -1,5 +1,5 @@
 {
-    "image": "vellvm",
+    "image": "bond15/vellvm-compilers-project",
     "customizations": {
         "vscode": {
           "extensions": ["ms-azuretools.vscode-docker","coq-community.vscoq1"]
