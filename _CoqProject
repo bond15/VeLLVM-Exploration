@@ -1,12 +1,21 @@
 
-
--I /home/coq/vellvm/src/coq
--R /home/coq/vellvm/src/coq Vellvm
--R /home/coq/vellvm/lib/QuickChick/src QuickChick
--R /home/coq/vellvm/lib/coq2html coq2html
+-Q /home/coq/InteractionTrees/theories Itree
+-R /home/coq/InteractionTrees/tutorial ITreeTutorial
 
 -R . MyProject
 
-src/Test.v
+/home/coq/InteractionTrees/tutorial/Introduction.v
 
+/home/coq/InteractionTrees/tutorial/Utils_tutorial.v
+/home/coq/InteractionTrees/tutorial/Fin.v
+/home/coq/InteractionTrees/tutorial/KTreeFin.v
+/home/coq/InteractionTrees/tutorial/CatTheory.v
+/home/coq/InteractionTrees/tutorial/Imp.v
+/home/coq/InteractionTrees/tutorial/Asm.v
+/home/coq/InteractionTrees/tutorial/AsmCombinators.v
+/home/coq/InteractionTrees/tutorial/Imp2Asm.v
+/home/coq/InteractionTrees/tutorial/Imp2AsmCorrectness.v
+/home/coq/InteractionTrees/tutorial/AsmOptimization.v
+/home/coq/InteractionTrees/tutorial/PrintAssumptions.v
 
+src/learnasm.v

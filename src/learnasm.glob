@@ -1,0 +1,7 @@
+DIGEST 69f00737aed54ba5888045cdeb1a1483
+FMyProject.src.learnasm
+R31:35 ITree.ITree <> <> lib
+R78:80 ITreeTutorial.Fin <> <> lib
+R87:89 ITreeTutorial.Asm <> <> lib
+R96:109 ITreeTutorial.AsmCombinators <> <> lib
+R116:129 ITreeTutorial.Utils_tutorial <> <> lib

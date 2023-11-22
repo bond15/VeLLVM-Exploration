@@ -1,0 +1,50 @@
+source_filename = "sanity.c"
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-pc-linux-gnu"
+define i32 @foo() #0 {
+; <label> %0
+  
+  
+  ret i32 7
+  
+
+}
+attributes #0 = { noinline nounwind optnone uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+!llvm.module.flags = !{!0}
+!llvm.ident = !{!1}
+!0 = !{i32 1, !"wchar_size", i32 4}
+!1 = !{!"Debian clang version 11.0.1-2"}
+
+Internal Coq representation of the ast:
+
+[TLE_Source_filename sanity.c; 
+TLE_Datalayout e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128; 
+TLE_Target x86_64-pc-linux-gnu; 
+TLE_Definition {|
+  df_prototype := {|dc_name := (Name "foo");
+                    dc_type := (TYPE_Function (TYPE_I 32%Z) []);
+                    dc_param_attrs := ([], []);
+                    dc_linkage := None;
+                    dc_visibility := None;
+                    dc_dll_storage := None;
+                    dc_cconv := None;
+                    dc_attrs := [FNATTR_Attr_grp 0%Z];
+                    dc_section := None;
+                    dc_align := None;
+                    dc_gc := None|};
+  df_args := [];
+  df_instrs := [
+                {|
+                  blk_id := (Anon 0%Z);
+                  blk_phis := [];
+                  blk_code := [];
+                  blk_term := TERM_Ret ((TYPE_I 32%Z), (EXP_Integer (7)%Z));
+                  blk_comments := None
+                |}
+                ]
+                |}; 
+TLE_Attribute_group 0%Z [FNATTR_Noinline; FNATTR_Nounwind; FNATTR_Optnone; FNATTR_Uwtable; FNATTR_Key_value (correctly-rounded-divide-sqrt-fp-math,false); FNATTR_Key_value (disable-tail-calls,false); FNATTR_Key_value (frame-pointer,all); FNATTR_Key_value (less-precise-fpmad,false); FNATTR_Key_value (min-legal-vector-width,0); FNATTR_Key_value (no-infs-fp-math,false); FNATTR_Key_value (no-jump-tables,false); FNATTR_Key_value (no-nans-fp-math,false); FNATTR_Key_value (no-signed-zeros-fp-math,false); FNATTR_Key_value (no-trapping-math,true); FNATTR_Key_value (stack-protector-buffer-size,8); FNATTR_Key_value (target-cpu,x86-64); FNATTR_Key_value (target-features,+cx8,+fxsr,+mmx,+sse,+sse2,+x87); FNATTR_Key_value (unsafe-fp-math,false); FNATTR_Key_value (use-soft-float,false)]; 
+TLE_Metadata (Name "llvm.module.flags") METADATA_Node [METADATA_Id (Anon 0%Z)]; 
+TLE_Metadata (Name "llvm.ident") METADATA_Node [METADATA_Id (Anon 1%Z)]; 
+TLE_Metadata (Anon 0%Z) METADATA_Node [METADATA_Const ((TYPE_I 32%Z), (EXP_Integer (1)%Z)); METADATA_String "wchar_size"; METADATA_Const ((TYPE_I 32%Z), (EXP_Integer (4)%Z))]; 
+TLE_Metadata (Anon 1%Z) METADATA_Node [METADATA_String "Debian clang version 11.0.1-2"]].

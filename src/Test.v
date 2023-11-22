@@ -1,8 +1,26 @@
 From Coq Require Import List String ZArith.
 (*Print LoadPath.*)
 Import ListNotations.
+(*
 Require Import Vellvm.Syntax.LLVMAst.
 Require Import Vellvm.Syntax.CFG.
+Require Import Vellvm.Syntax.TypToDtyp.
+Require Import Vellvm.Syntax.DynamicTypes.
+
+Require Import Vellvm.Semantics.TopLevel.
+Require Import Vellvm.Semantics.DynamicValues.
+Require Import Vellvm.Semantics.InterpretationStack.
+*)
+From Vellvm Require Import 
+  Syntax
+  Semantics.
+
+From ITree Require Import
+  ITree.
+
+     
+
+
 
 Definition n : nat := 3.
 
@@ -118,8 +136,18 @@ TLE_Definition {|
                 |}]);
                   |}].
 
-
+Check thing.
 Definition modulecfg : mcfg typ := mcfg_of_tle thing.
+
+(* static to dynamic types *)
+
+Definition dyncfg : mcfg dtyp := convert_types modulecfg.
+
+Print itree.
+Import SemNotations.
+Definition myItree : itree L0 uvalue := denote_vellvm_main dyncfg.
+
+Print myItree.
 
 
 

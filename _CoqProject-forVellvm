@@ -1,0 +1,12 @@
+
+
+-I /home/coq/vellvm/src/coq
+-R /home/coq/vellvm/src/coq Vellvm
+-R /home/coq/vellvm/lib/QuickChick/src QuickChick
+-R /home/coq/vellvm/lib/coq2html coq2html
+
+-R . MyProject
+
+src/learnItrees.v
+src/sanity.v
+src/Test.v
