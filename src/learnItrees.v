@@ -24,9 +24,24 @@ Inductive IO : Type -> Type :=
 
 Inductive void : Type.
 
-CoFixpoint boring : itree IO nat := Ret 42.
+CoFixpoint boring : itree IO nat 
+  := Ret 42.
 
-CoFixpoint spin : itree IO nat := Tau spin.
+CoFixpoint spin : itree IO nat 
+  := Tau spin.
+
+CoFixpoint echo : itree IO void 
+  := Vis (Input) 
+      (fun str => 
+        Vis (Output str) 
+          (fun _ => echo)).
+        
+CoFixpoint kill9 : itree IO string 
+  := Vis (Input) 
+    (fun str => 
+      if (str =? "9") 
+      then (Ret "done") 
+      else kill9).
 
 (*
 CoFixpoint echo : itree IO void.
@@ -39,8 +54,7 @@ Defined.
 *)
 (* This program takes an input n and prints n. repeats forever*)
 
-CoFixpoint echo : itree IO void := 
-    Vis (Input) (fun str => Vis (Output str) (fun _ => echo)).
+
 
 (*a program which does nothing visible*)
 CoFixpoint nada {E : Type -> Type}: itree E void := 
@@ -59,8 +73,9 @@ Definition isTheAnswer (n : nat) : bool :=
 (* A program which only terminates after it recieves the number 42*)
 
 
-CoFixpoint kill9 : itree IO string := 
-    Vis (Input) (fun str => if (str =? "9") then (Ret "done") else kill9).
+
+
+
 
 (* monadic syntax for Itrees *)
 Definition bind {E R S} (t : itree E R) (k : R -> itree E S) : itree E S :=
@@ -325,23 +340,20 @@ Definition RegAndMem : Type -> Type := Memory ⊕ Reg.
   | GlobalWrite (id: k) (dv: v): GlobalE k v unit
   | GlobalRead  (id: k): GlobalE k v v.
 
-  (* Interactions with local variables for the LLVM IR *)
   Variant LocalE (k v:Type) : Type -> Type :=
   | LocalWrite (id: k) (dv: v): LocalE k v unit
   | LocalRead  (id: k): LocalE k v v.
 
   Variant StackE (k v:Type) : Type -> Type :=
-  | StackPush (args: list (k * v)) : StackE k v unit (* Pushes a fresh environment during a call *)
-  | StackPop : StackE k v unit. (* Pops it back during a ret *)
+  | StackPush (args: list (k * v)) : StackE k v unit 
+  | StackPop : StackE k v unit. 
 
-  (* Generic calls, refined by [denote_mcfg] *)
   Variant CallE : Type -> Type :=
   | Call        : forall (t:dtyp) (f:uvalue) (args:list uvalue), CallE uvalue.
 
   Variant ExternalCallE : Type -> Type :=
   | ExternalCall        : forall (t:dtyp) (f:uvalue) (args:list dvalue), ExternalCallE dvalue.
 
-  (* Call to an intrinsic whose implementation do not rely on the implementation of the memory model *)
   Variant IntrinsicE : Type -> Type :=
   | Intrinsic : forall (t:dtyp) (f:string) (args:list dvalue), IntrinsicE dvalue.
 
@@ -359,7 +371,6 @@ Definition RegAndMem : Type -> Type := Memory ⊕ Reg.
   Variant PickE : Type -> Type :=
   | pick (u:uvalue) (P : Prop) : PickE dvalue.
 
-  (* Undefined behaviour carries a string. *)
   Variant UBE : Type -> Type :=
   | ThrowUB : string -> UBE void.
 

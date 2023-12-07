@@ -1,20 +1,60 @@
 
 From Coq Require Import
-    Strings.String
-    List.
+Lists.List
+Strings.String
+Morphisms
+ZArith
+Setoid
+RelationClasses.
 
-Open Scope string_scope. 
-Import ListNotations.
+(*Turning off some of the notation 
+helps to see what rules might be helpful*)
 
 From ITree Require Import
+    Eq.Eqit
+    Basics.Category
+    Basics.HeterogeneousRelations
+    Basics.Monad
+    Basics.CategorySub
+    Interp.InterpFacts
+    Events.MapDefault
+    Events.MapDefaultFacts
+    Events.State
+    Events.StateFacts
+    ITreeMonad
+    ITreeFacts
     ITree.
+
+From ExtLib Require Import
+    Core.RelDec
+    Structures.Monad
+    Structures.Maps
+    Programming.Show
+    Data.Map.FMapAList.
+
+Import CatNotations.
+Local Open Scope cat_scope.
+Local Open Scope itree_scope.
 
 From ITreeTutorial Require Import 
     Fin 
     Asm 
     AsmCombinators 
+    AsmOptimization
+    Imp2Asm
+    KTreeFin
     Utils_tutorial.
 
+Import ITreeNotations.
+
+Import ListNotations.
+Open Scope string_scope.
+
+Import CatNotations.
+Local Open Scope cat_scope.
+Local Open Scope itree_scope.
+
+From ITreeTutorial Require Import Fin Asm AsmCombinators Utils_tutorial.
 
 Variant Label : Type := 
 | lbb0 : Label
@@ -46,7 +86,6 @@ int foo () {
     return y;
 }
 
-
 memory map 
   variable  | addres
     x | 0
@@ -70,23 +109,312 @@ define dso_local i32 @foo() #0 {
 *)
 
 Print fin.
-
+Module exact_eq_example.
 
 (* wtf is with the labels *)
-Definition bb0 : block (fin 2) := 
-    after [
-        Iadd 1 1 (Oimm 1)
-    ] (Bjmp (fS f0)).
-
-Definition bb1 : block (fin 2) :=
+Definition bb0 : block (fin 1) := 
     after [
         Iadd 1 1 (Oimm 1)
     ] (Bjmp f0).
 
-Definition asm0 := raw_asm_block bb0.
-Definition asm1 := raw_asm_block bb1.
+Definition bb1 : block (fin 1) :=
+    after [
+        Iadd 1 1 (Oimm 1)
+    ] (Bjmp f0).
 
-Definition asmcombined := loop_asm asm0 asm1.
+Definition asm0 : asm 1 1 := raw_asm_block bb0.
+Definition asm1 : asm 1 1 := raw_asm_block bb1.
+
+Definition asmcombined := app_asm asm0 asm1.
+Print denote_asm.
+
+Context {E : Type -> Type}.
+  Context {HasRegs : Reg -< E}.
+  Context {HasMemory : Memory -< E}.
+  Context {HasExit : Exit -< E}.
+
+  Notation denote_bk := (denote_bk (E := E)).
+  Notation denote_bks := (denote_bks (E := E)).
+  Notation denote_asm := (denote_asm (E := E)).
+
+(* how about showing that asm0 and ams1 are bisimilar?*)
+Definition den_asm0 :itree E (fin 1) := denote_asm asm0 f0.
+Definition den_asm1 :itree E (fin 1) := denote_asm asm1 f0.
+
+(*≈ means eutt eq *)
+(* This proof demonstrates that two exacly equal blocks are bilimilar*)
+Lemma ExactEqualBlocks : den_asm0 ≈ den_asm1.
+Proof.
+(* unfold definition of asm programs *)
+unfold den_asm0.
+unfold den_asm1.
+unfold asm0.
+unfold asm1.
+(*denote_asm (raw_asm_block b) f0 ≈ denote_bk b*)
+rewrite raw_asm_block_correct.
+rewrite raw_asm_block_correct.
+(* now we can work with just the blocks *)
+unfold bb0.
+unfold bb1.
+reflexivity.
+Qed.
+(* How can i just say that they are exactly equal?
+    maybe use eq in the relation?
+    yea that was it.
+
+    rewrite denote_after.
+reflexivity.
+Qed.
+*)
+
+(*repeat setoid_rewrite bind_bind.
+apply eqit_bind; try reflexivity. intros _.
+    apply eqit_bind; try reflexivity. intros [].
+*)
+
+(*eapply eutt_clo_bind; try reflexivity. intros; subst.
+*)
+
+(*Check bind_bind.
+      rewrite bind_bind.
+    eapply eutt_clo_bind.
+- cbn. apply eqit_bind. 
+* 
+reflexivity 
+Print eutt. 
+*)
+End exact_eq_example.
+
+Module example2.
+(* now show that these to basic blocks are similar 
+BB2:
+    r1 = add r1 1
+    r1 = add r1 1
+
+BB3:
+    r1 = add r1 2
+*)
+Definition bb2 : block (fin 1) := 
+    after [
+        Iadd 1 1 (Oimm 1);
+        Iadd 1 1 (Oimm 1)
+    ] (Bjmp f0).
+
+Definition bb3 : block (fin 1) :=
+    after [
+        Iadd 1 1 (Oimm 2)
+    ] (Bjmp f0).
+
+
+Definition BB2_itree 
+    {E}
+    {HasExit : Exit -< E}
+    {HasReg : Reg -< E}
+    {HasMemory: Memory -< E}
+    : itree E (fin 1) := denote_asm (raw_asm_block bb2) f0.
+Definition BB3_itree 
+    {E}
+    {HasExit : Exit -< E}
+    {HasReg : Reg -< E}
+    {HasMemory: Memory -< E}
+: itree E (fin 1) := denote_asm (raw_asm_block bb3) f0.
+
+
+(* hmm may need some tools from ASM Optimization
+https://github.com/DeepSpec/InteractionTrees/blob/dda104937d79e2052d1a26f6cbe89429245ff743/tutorial/AsmOptimization.v#L291
+*)
+
+(* probably not correct? 
+TODO is it correct?
+Lemma boring : BB2_itree ≈ BB3_itree.
+*)
+Check eq_asm_denotations_EQ.
+(*
+eq_asm_denotations_EQ
+	 : ktree (Reg +' Memory +' ?E) ?A ?B ->
+       ktree (Reg +' Memory +' ?E) ?A ?B -> Prop
+*)
+
+Check denote_bk bb2. (* itree E (fin 1) *)
+Check Reg.
+Lemma foo
+{E}
+    {HasExit : Exit -< E}
+    {HasReg : Reg -< E}
+    {HasMemory: Memory -< E}
+: 
+    @eq_asm_denotations_EQ 
+        E 
+        (fin 1) 
+        (fin 1) 
+        (fun _ => denote_bk bb2) 
+        (fun _ => denote_bk bb3).
+Proof.
+(* at the asm level 
+unfold BB2_itree.
+unfold BB3_itree.  
+rewrite raw_asm_block_correct.
+rewrite raw_asm_block_correct.
+
+now at the block level*)
+
+unfold eq_asm_denotations_EQ.
+intros a mem1 mem2 regs1 regs2 EQ_mem EQ_reg.
+unfold bb2.
+unfold bb3.
+
+
+ unfold interp_asm.
+    unfold rel_asm.
+    eapply interp_map_proper; try typeclasses eauto; auto.
+    eapply interp_map_proper; try typeclasses eauto; auto.
+
+
+rewrite denote_after.
+rewrite denote_after.
+(* interp (forall T : Type, E T -> M T) -> 
+           forall T : Type, itree E T -> M T*)
+
+Check interp_bind.
+(* interp f (ITree.bind t k)
+       ≅ ITree.bind (interp f t) 
+                    (fun r : ?R => 
+                       interp f (k r))*)
+rewrite interp_bind.
+rewrite interp_bind.
+Check eutt_clo_bind.
+(*
+    eutt UU t1 t2 
+->
+    (forall (u1 : U1) (u2 : U2), 
+        UU u1 u2 -> eutt RR (k1 u1) (k2 u2))
+ ->
+    eutt RR (ITree.bind t1 k1) 
+            (ITree.bind t2 k2)
+*)
+(* this worked because the jumps were the same address*)
+(*with (UU := rel_asm)*)
+eapply eutt_clo_bind ; try reflexivity.
+simpl.
+(* this now looks like proving 
+the equivalence of simple monadic
+programs with event handlers*)
+
+
+rewrite interp_bind.
+rewrite interp_bind.
+
+rewrite interp_trigger. cbn.
+
+simpl.
+
+
+unfold denote_list. 
+unfold denote_instr. simpl.
+
+(*breaking abstraction*)
+simpl.
+rewrite interp_bind.
+rewrite interp_bind.
+rewrite bind_bind.
+
+unfold trigger.
+rewrite interp_vis.
+rewrite bind_bind.
+simpl.
+
+
+rewrite interp_bind.
+
+rewrite interp_trigger_h.
+
+
+
+
+Print interp.
+(* to the meat of it now,
+showing the one instruction has the same effect as the two instructions*)
+simpl.
+repeat rewrite interp_bind.
+
+rewrite interp_trigger_h.
+
+rewrite interp_state_bind.
+rewrite interp_state_trigger_eqit.
+
+rewrite interp_state_bind.
+
+rewrite interp_trigger_h.
+
+
+rewrite interp_asm_bind.
+Print interp_asm.
+
+unfold interp_asm.
+unfold MapDefault.interp_map.
+repeat rewrite interp_state_ret.
+
+Check interp_asm.
+rewrite interp_asm.
+
+
+
+unfold bb2.
+unfold bb3.
+rewrite denote_after.
+rewrite denote_after.
+Check eqit_bind.
+eapply eqit_bind; try reflexivity.
+Check bind_bind.
+Check denote_list_app.
+simpl.
+rewrite bind_bind.
+
+cbn.
+setoid_rewrite denote_list_app.
+
+End example2.
+
+
+(* see Imp2Asm line 331
+Print bisimilar. *)
+
+
+(*  
+TODO
+compare to an ASM to ASM bisimulation relation
+
+Q?
+How to convert from a sub (ktree E) to an itree?
+    seems like denote_asm is doing something..
+    lmao yes.. you denote_asm <asm> f0
+    it was under applied, needed to give f0
+
+line 317 Asm
+Definition interp_asm {E A} (t : itree (Reg +' Memory +' E) A) :
+  memory -> registers -> itree E (memory * (registers * A)) :=
+  let h := bimap h_reg (bimap h_memory (id_ _)) in
+  let t' := interp h t in
+  fun  mem regs => interp_map (interp_map t' regs) mem.
+
+line 331 Imp2AsmCorrect
+Definition bisimilar {E} (t1 : itree (ImpState +' E) A) (t2 : itree (Reg +' Memory +' E) B)  :=
+    forall g_asm g_imp l,
+      Renv g_imp g_asm ->
+      eutt state_invariant
+           (interp_imp t1 g_imp)
+           (interp_asm t2 g_asm l).
+
+line 763 Imp2AsmCorrect
+Definition equivalent {E} `{Exit -< E} (s:stmt) (t:asm 1 1) : Prop :=
+    bisimilar TT (E := E) (denote_imp s) (denote_asm t f0).
+
+
+line 822 Imp2AsmCorrect
+Theorem compile_correct {E} {HasExit : Exit -< E} (s : stmt) :
+    equivalent (E := E) s (compile s).*)
+Check eutt (fun _ _ => True) den_asm0.
+Print eutt.
 
 
 Definition a1 : addr := "0".
