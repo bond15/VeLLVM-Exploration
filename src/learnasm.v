@@ -185,6 +185,45 @@ Print eutt.
 *)
 End exact_eq_example.
 
+Module help.
+
+(*((lv <- trigger (GetReg 1);;
+rv <- Ret 1;; trigger (SetReg 1 (lv + rv)));;
+(lv <- trigger (GetReg 1);;
+rv <- Ret 1;; trigger (SetReg 1 (lv + rv)));; 
+Ret tt)))*)
+
+Definition prog1 : itree Reg nat := Ret 7.
+Definition prog2 : itree Reg nat := 
+( 
+    trigger (SetReg 1 7) ;;
+    lv <- trigger (GetReg 1);;  
+    Ret lv
+).
+    
+(*
+Definition h_reg {E: Type -> Type} `{mapE reg 0 -< E}
+  : Reg ~> itree E :=
+  fun _ e =>
+    match e with
+    | GetReg x => lookup_def x
+    | SetReg x v => insert x v
+    end.
+*)
+
+(* SEE here https://github.com/DeepSpec/InteractionTrees/blob/dda104937d79e2052d1a26f6cbe89429245ff743/tutorial/Asm.v#L317C29-L317C64
+*)
+Definition my_interp {E A} (t : itree (Reg +' E) A):
+    registers -> itree E (registers * A).
+intros regs.
+eapply interp_map ; try exact regs.
+
+
+
+registers -> itree E (registers * A)
+
+End help.
+
 Module example2.
 (* now show that these to basic blocks are similar 
 BB2:
@@ -235,6 +274,29 @@ eq_asm_denotations_EQ
        ktree (Reg +' Memory +' ?E) ?A ?B -> Prop
 *)
 
+Check interp.
+Check interp_asm.
+
+(* helpers? 
+Lemma interp_asm_bind {E  R S}
+    `{HasExit : Exit -< E}
+    `{HasReg : Reg -< E}
+    `{HasMemory: Memory -< E}
+      (t : itree E R) (k : R -> itree E S) :
+    interp_asm  (ITree.bind t k)
+  ≅ ITree.bind (interp_asm t) (fun r => interp_asm (k r)).
+Proof.
+*)
+
+(* see 
+Lemma interp_write_one F (handle_io : forall R, ioE R -> itree F R)
+  : interp handle_io write_one
+  ≈ (xs <- handle_io _ Input;;
+     handle_io _ (Output (xs ++ [1]))).
+    
+ in IntroductionSolutions.v
+*)
+
 Check denote_bk bb2. (* itree E (fin 1) *)
 Check Reg.
 Lemma foo
@@ -263,7 +325,13 @@ intros a mem1 mem2 regs1 regs2 EQ_mem EQ_reg.
 unfold bb2.
 unfold bb3.
 
+(*
+unfold denote_bk.
+simpl.
+ this seems cleaner *)
 
+
+(* why unfold interp_asm *)
  unfold interp_asm.
     unfold rel_asm.
     eapply interp_map_proper; try typeclasses eauto; auto.
@@ -296,6 +364,7 @@ Check eutt_clo_bind.
 (*with (UU := rel_asm)*)
 eapply eutt_clo_bind ; try reflexivity.
 simpl.
+Print h_memory.
 (* this now looks like proving 
 the equivalence of simple monadic
 programs with event handlers*)
