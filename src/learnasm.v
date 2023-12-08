@@ -197,9 +197,9 @@ Context {HasExit : Exit -< E}.
 Definition prog1 : itree (Reg +' E) nat := Ret 7.
 Definition prog2 : itree (Reg +' E) nat := 
 ( 
-    trigger (SetReg 1 7) ;;
-    v <- trigger (GetReg 1);;  
-    Ret v
+    v <- trigger(GetReg 1);;
+    trigger (SetReg 1 v) ;;
+    Ret 7
 ).
     
 (*
@@ -265,34 +265,87 @@ Lemma my_interp_GetReg {A} f r reg :
         ((my_interp (f (lookup_default r 0 reg))) reg).
 Admitted.
 
-Lemma my_interp_SetReg { A} f r v  reg :
+Lemma my_interp_SetReg {A} f r v  reg :
   @eutt E _ _ (@rel_regprogs A)
        (my_interp (trigger (SetReg r v) ;; f)  reg)
-       ((my_interp f)  (Maps.add r v reg)).
+       ((my_interp f)  (add r v reg)).
 Admitted.
 
+Lemma my_interp_ret {A} (x : A) reg :
+    (my_interp (Ret x) reg) ≈ (Ret (reg, x)).
+Proof.
+    unfold my_interp.
+    rewrite interp_ret.
+    unfold interp_map.
+    rewrite interp_state_ret.
+    reflexivity.
+Qed.
+
+
+(* the trick was to use the constructor tactic *)
+Lemma wtf {A B : Type} {R1: relationH A A} {R2 : relationH B B}  {x y : A} {w z : B} :
+    R1 x y -> 
+    R2 w z -> 
+    prod_rel R1 R2 (x , w) (y , z).
+Proof.
+    intros.
+    constructor; simpl ; auto.
+Qed.
+
+
+
+
+(* TODO
+what LTAC is available to make this simpler?
+see theories/EQ/UpToTaus?
+*)
 Lemma result : eq_register_program_denotations_EQ kprog1 kprog2.
 Proof.
+    (* unpack the definition of equal register programs *)
     unfold eq_register_program_denotations_EQ. 
+    (* introduce variables *)
     intros x regs1 regs2 eqregs.
 
+    (* unpack the program definitons *)
     unfold kprog1.
     unfold prog1.
     unfold kprog2.
     unfold prog2.
 
-    setoid_rewrite my_interp_SetReg.
+    (* interpret the getReg and setReg effects *)
     setoid_rewrite my_interp_GetReg.
-    cbn.
+    setoid_rewrite my_interp_SetReg.
+    
+    (* interpret the Ret node*)
+    rewrite my_interp_ret.
+    rewrite my_interp_ret.
 
-    (* almost! *)
+    (* change eutt R (Ret x) (Ret y)
+       to
+       R (Ret x) (Ret y)
+    *)
+    rewrite <- eutt_Ret.
+    
+    (* split the relation and use EQ_registers_add*)
+    unfold rel_regprogs.
+    constructor ; simpl. 
+    (* 7 = 7*)
+    2:{reflexivity. }
+    (* EQ_registers 0 
+        regs1 
+        (alist_add 1 
+            (lookup_default 1 0 regs2) 
+                regs2) *)
+    rewrite <- EQ_registers_add ; try reflexivity.
+    apply symmetry.
+    exact eqregs.
+Qed.
+(*
+    eapply prod_rel_eqv; try typeclasses eauto.
+*)
 
-    setoid_rewrite interp_ret.
 
-    cbn.
-    Check interp_bind.
-    unfold my_interp,interp_map.
-    unfold id_, Id_Handler, Handler.id_.
+
 
     
 
