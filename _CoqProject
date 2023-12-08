@@ -18,4 +18,5 @@
 /home/coq/InteractionTrees/tutorial/AsmOptimization.v
 /home/coq/InteractionTrees/tutorial/PrintAssumptions.v
 
+src/learnitreespaper.v
 src/learnasm.v

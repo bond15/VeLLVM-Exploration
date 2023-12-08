@@ -16,6 +16,7 @@ From ITree Require Import
     Basics.HeterogeneousRelations
     Basics.Monad
     Basics.CategorySub
+    Basics.CategoryOps
     Interp.InterpFacts
     Events.MapDefault
     Events.MapDefaultFacts
@@ -55,6 +56,57 @@ Local Open Scope cat_scope.
 Local Open Scope itree_scope.
 
 From ITreeTutorial Require Import Fin Asm AsmCombinators Utils_tutorial.
+
+
+(* learn loop construct*)
+Module loops.
+
+Print loop.
+(* loop := inr_ >>> iter (f >>> bimap inl_ (id_ b))
+
+so what are the sub components?
+*)
+
+Inductive void : Type -> Type :=.
+
+Definition M := itree void.
+
+Definition k1 : ktree void unit nat 
+    := fun tt => Ret 7.
+Definition k2 : ktree void nat nat
+    := fun n => Ret (n + 1).
+Definition k3 : ktree void unit bool 
+    := fun tt => Ret true.
+
+Definition k4 : ktree void (unit + nat) nat
+    := case_ k1 k2.
+    
+Eval compute in (inl_ >>> k4).
+
+Definition k5 : ktree void unit nat
+    := inl_ >>> k4.
+
+Definition k6 : ktree void unit nat
+    := pure (fun tt => 7).
+
+Definition k7 : ktree void (unit + unit) (nat + bool) 
+    := bimap k1 k3.
+
+
+Print bimap.
+Check k5.
+
+
+
+Definition ex1 : ktree void unit nat := 
+    k1 >>> k2.
+
+
+
+Print inr_.
+Print Inr.
+
+End loops.
 
 Variant Label : Type := 
 | lbb0 : Label
@@ -280,6 +332,36 @@ Proof.
     rewrite interp_state_ret.
     reflexivity.
 Qed.
+(*
+Context {E': Type -> Type}.
+  Notation E := (Reg +' Memory +' E').
+
+Lemma interp_asm_bind: 
+    forall {E' R S} 
+            (t: itree (Reg +' E) R) 
+            (k: R -> itree _ S) 
+            (regs : registers) ,
+@eutt (Reg +' E') _ _ eq 
+      (my_interp (ITree.bind t k) regs)
+      (ITree.bind 
+        (my_interp t regs) 
+        (fun '(regs', x) => my_interp (k x) regs')).
+
+Proof.
+intros.
+unfold interp_asm.
+unfold interp_map. cbn.
+repeat rewrite interp_bind.
+repeat rewrite interp_state_bind.
+repeat rewrite bind_bind.
+eapply eutt_clo_bind.
+{ reflexivity. }
+intros.
+rewrite H.
+destruct u2 as [g' [l' x]].
+reflexivity.
+Qed.
+*)
 
 
 (* the trick was to use the constructor tactic *)
@@ -337,6 +419,7 @@ Proof.
             (lookup_default 1 0 regs2) 
                 regs2) *)
     rewrite <- EQ_registers_add ; try reflexivity.
+    (* this comes from the Symmetric relations typeclass *)
     apply symmetry.
     exact eqregs.
 Qed.
@@ -345,13 +428,439 @@ Qed.
 *)
 
 
+(* slightly harder proof 
+   2 + 2 = 4 
+
+   just Itrees, no assembly yet
 
 
+*)
+Definition prog3 : itree (Reg +' E) nat := 
+(
+    Ret 4
+).
+Definition kprog3 : Kleisli (itree (Reg +' E)) unit nat
+    := fun _ => prog3.
+Definition prog4 : itree (Reg +' E) nat := 
+( 
+    v1 <- trigger(GetReg 1);;
+    v2 <- trigger(GetReg 2);;
+    Ret (v1 + v2)
+).
+Definition kprog4 : Kleisli (itree (Reg +' E)) unit nat
+    := fun _ => prog4.
+
+(*   
+    initial memory layout
+    r1 := 2
+    r2 := 2
+*)
+Definition initialState : registers := 
+[
+    (1,2);
+    (2,2)
+].
+
+Definition eq_regprog {A B}
+    (t1 t2 : Kleisli (itree (Reg +' E)) A B) : Prop :=
+    forall (a : A),
+        (eutt rel_regprogs)
+            (my_interp (t1 a) initialState)
+            (my_interp (t2 a) initialState).
+
+
+Lemma result2 : eq_regprog kprog3 kprog4.
+Proof.
+    unfold eq_regprog.
+    intros.
+
+    unfold kprog3.
+    unfold prog3.
+    unfold kprog4.
+    unfold prog4.
+
+    rewrite my_interp_GetReg.
+    rewrite my_interp_GetReg.
+
+    (*
+    huh, don't actually need the setoid version
+    setoid_rewrite my_interp_GetReg.
+    setoid_rewrite my_interp_GetReg.
+    *)
+
+    rewrite my_interp_ret.
+    rewrite my_interp_ret.
+
+    rewrite <- eutt_Ret.
+    unfold rel_regprogs.
+    constructor ; simpl.
+    - reflexivity.
+    - unfold initialState. 
+      cbn.
+      reflexivity.
+Qed. 
     
+(* now write the same program, 
+   but using asm syntax 
+   store result in r3 
+*)
+Definition bb0 : block (fin 1) := 
+after [
+    Imov 3 (Oimm 4)
+] (Bhalt).
 
+Definition bb1 : block (fin 1) := 
+after [
+    Iadd 3 1 (Oreg 2)
+] (Bhalt).
+(*
+Notation denote_bk := (denote_bk (E := E)).
+Notation denote_bks := (denote_bks (E := E)).
+Notation denote_asm := (denote_asm (E := E)).
+
+*)
+(* 
+  ktree_fin E A B 
+    := 
+  sub (ktree E) fin A B
+    := 
+  fin A -> itree E (fin B)
+*)
+
+Definition asm0 : ktree_fin (Reg +' E) 1 1 := denote_asm (raw_asm_block bb0).
+Definition asm1 : ktree_fin (Reg +' E) 1 1 := denote_asm (raw_asm_block bb1).
+
+
+(* use new definition to avoid this nonsense
+
+ (* pose*)
+    (*replace a with (@f0 1) by 
+     (). *)
+
+    assert (a = f0) as duh by (apply unique_f0).
+    rewrite duh.
+*)
+
+(* my_interp 
+    (denote_asm 
+        (raw_asm_block bb) 
+        f0) 
+    regs
+    =
+    my_interp
+        denote_bk bb
+*)
+Eval compute in asm1.
+Lemma blag {bb : block (fin 1)}{regs} {R}: 
+    eutt R
+        (my_interp 
+            (denote_asm 
+                (raw_asm_block bb)
+            f0) regs)
+        (my_interp
+            (denote_bk bb) regs).
+Admitted.
+(*
+            Proof.
+(* why 
+  setoid_rewrite raw_asm_block_correct.
+  *)
+    unfold my_interp.
+    unfold interp_map.
+    repeat setoid_rewrite interp_bind.
+    repeat rewrite interp_state_bind.
+
+    rewrite interp_stat
+*)
+
+
+
+
+
+(* how about using a lemma to 
+evaluate the denotation of asm program into an itree?*)
+
+(*this one is aggressive, but it works
+with rewrites *)
+Lemma bb0Itreeeq : asm0 f0 = ((v <- Ret 4;; trigger (SetReg 3 v));; exit).
+Proof.
+    unfold asm0.
+    unfold raw_asm_block.
+    unfold raw_asm.
+    unfold denote_asm.
+    unfold denote_bks.
+    simpl.
+
+    (* close, but things are blocked by the "loop" construct*)
+    Check loop.
+    (*  WRONG DEFINITION (ADDED BASICS.CATEGORYOPS to get the correct definition)
+        loop : Handler (?c +' ?a) (?c +' ?b) -> Handler ?a ?b
+        where 
+
+        Handler (E F : Type -> Type) := E ~> Itree F.
+
+    *)
+    Print loop.
+
+
+    (* well, probably need to understand this..
+        one definition in 455 CategoryOps
+    
+    
+    *)
+    unfold loop.
+    cat_auto. 
+    cbn.
+
+    simpl.
+
+    cbn.
+    reflexivity.
+
+(*
+    unfold asm0.
+    (* compute. too aggresive *)
+    reflexivity.
+Qed.
+*)
+
+(* this one "stays in the abstraction"
+   but breaks rewrites.*)
+Lemma bb0Itree : asm0 f0 ≈ ((v <- Ret 4;; trigger (SetReg 3 v));; exit).
+Proof.
+    unfold asm0.
+    rewrite raw_asm_block_correct.
+    unfold denote_bk. 
+    reflexivity.
+Qed.
+
+
+Definition eq_regprog'
+    (t1 t2 : ktree_fin (Reg +' E) 1 1) : Prop :=
+        (eutt rel_regprogs)
+            (my_interp (t1 f0) initialState)
+            (my_interp (t2 f0) initialState).
+Lemma result3 : eq_regprog' asm0 asm1.
+Proof.
+    unfold eq_regprog'.
+    rewrite bb0Itreeeq.
+    rewrite my_interp_bind.
+    rewrite my_interp_ret.
+
+    setoid_rewrite  bb0Itree.
+
+    unfold asm0.
+    unfold asm1.
+
+    setoid_rewrite blag.
+
+    unfold bb0.
+    unfold bb1.
+    cbn.
+
+
+
+    unfold denote_asm.
+
+
+
+
+
+    (* hack and slash following 
+    line 397 AsmOpt..v
+    *)
+    unfold my_interp.
+    unfold interp_map.
+    repeat setoid_rewrite interp_bind.
+    repeat rewrite interp_state_bind.
+    repeat apply (@eutt_clo_bind _ _ _ _ _ _ rel_regprogs).
+    reflexivity.
+    - 
+        intros.
+        destruct H as [J1 J2].
+        unfold CategorySub.from_bif, FromBifunctor_ktree_fin.
+        cbn.
+        repeat rewrite interp_ret.
+        repeat rewrite interp_state_ret.
+        apply eqit_Ret.
+        constructor; cbn.
+        exact J1.
+        setoid_rewrite J2.
+        reflexivity.
+        
+    -   
+        intros. 
+        destruct H as [J1 J2].
+        setoid_rewrite J2.
+        rewrite interp_state_case.
+
+
+        compute in J2.
+        reflexivity.
+        unfold inl_, Inl_Kleisli, lift_ktree_.  
+
+
+
+
+    (* hmm setoid rewriting problems..*)
+    Check raw_asm_block_correct.
+    (*
+        forall b : block (fin ?A),
+       denote_asm (raw_asm_block b) f0 ≈ denote_bk b 
+    *)
+
+    (* 
+        push interp into denotation 
+     or 
+        evaluate denotation ?
+    *)
+    setoid_rewrite raw_asm_block_correct.
 
 
 End help.
+
+(* Now use interp_asm instead of my_interp*)
+
+
+
+
+
+(* In the "help" module,
+the relation said both programs 
+return the same register assignments.
+
+give a more flexible relation 
+that only cares about return value
+*)
+
+Module retvalonly.
+
+(*setup context*)
+Context {E : Type -> Type}.
+Context {HasRegs : Reg -< E}.
+Context {HasMemory : Memory -< E}.
+Context {HasExit : Exit -< E}.
+
+
+Definition prog1 : itree (Reg +' E) nat := Ret 7.
+Definition prog2 : itree (Reg +' E) nat := 
+( 
+    v <- trigger(GetReg 1);;
+    trigger (SetReg 1 v) ;;
+    Ret 7
+).
+    
+Definition my_interp {A} (t : itree (Reg +' E) A):
+    registers -> itree E (registers * A) :=
+    let h := bimap h_reg (id_ _) in 
+    let t' := interp h t in 
+    fun regs => interp_map t' regs.
+
+Definition example_interp  : itree E (registers * nat)
+    := my_interp prog2 [(1,0)].
+
+Compute (burn 100 example_interp).
+(* Ret ([(1, 7)], 7) *)
+
+(* MODIFICATION STARTS HERE *)
+Definition rel_regprogs {B} : registers * B -> registers * B -> Prop:= 
+    fun p1 p2 => eq (snd p1) (snd p2).    
+(*prod_rel (fun r1 r2 => True) eq.*)
+
+(* unsure why but it was in AsmOpt..v*)
+Global Hint Unfold rel_regprogs: core.
+
+
+(* Influenced from line 109 ASM optimizations *)
+Definition eq_register_program_denotations_EQ {A B}
+    (t1 t2 : Kleisli (itree (Reg +' E)) A B) : Prop :=
+    forall (a : A) (regs1 regs2 :registers),
+        EQ_registers 0 regs1 regs2 ->
+        (eutt rel_regprogs)
+            (my_interp (t1 a) regs1)
+            (my_interp (t2 a) regs2).
+
+Definition kprog1 : ktree (Reg +' E) unit nat 
+    := fun _ => prog1.
+Definition kprog2 : ktree (Reg +' E) unit nat 
+    := fun _ => prog2.
+
+
+Lemma my_interp_GetReg {A} f r reg : 
+    @eutt E _ _ (@rel_regprogs A)
+        (my_interp (val <- trigger (GetReg r) ;; f val) reg)
+        ((my_interp (f (lookup_default r 0 reg))) reg).
+Admitted.
+
+Lemma my_interp_SetReg {A} f r v  reg :
+  @eutt E _ _ (@rel_regprogs A)
+       (my_interp (trigger (SetReg r v) ;; f)  reg)
+       ((my_interp f)  (add r v reg)).
+Admitted.
+
+Lemma my_interp_ret {A} (x : A) reg :
+    (my_interp (Ret x) reg) ≈ (Ret (reg, x)).
+Proof.
+    unfold my_interp.
+    rewrite interp_ret.
+    unfold interp_map.
+    rewrite interp_state_ret.
+    reflexivity.
+Qed.
+
+
+
+Lemma result : eq_register_program_denotations_EQ kprog1 kprog2.
+Proof.
+    (* unpack the definition of equal register programs *)
+    unfold eq_register_program_denotations_EQ. 
+    (* introduce variables *)
+    intros x regs1 regs2 eqregs.
+
+    (* unpack the program definitons *)
+    unfold kprog1.
+    unfold prog1.
+    unfold kprog2.
+    unfold prog2.
+
+    (* interpret the getReg and setReg effects *)
+    (* PROBLEM STARTS HERE,
+       need a Proper instance for the new relation
+       to be able to perform setoid rewrite.
+
+       See line 812 of Imp2AsmCorrectness for an example
+       not really sure what to do with that..
+    *)
+    setoid_rewrite my_interp_GetReg.
+    setoid_rewrite my_interp_SetReg.
+    
+    (* interpret the Ret node*)
+    rewrite my_interp_ret.
+    rewrite my_interp_ret.
+
+    (* change eutt R (Ret x) (Ret y)
+       to
+       R (Ret x) (Ret y)
+    *)
+    rewrite <- eutt_Ret.
+    
+    (* split the relation and use EQ_registers_add*)
+    unfold rel_regprogs.
+    constructor ; simpl. 
+    (* 7 = 7*)
+    2:{reflexivity. }
+    (* EQ_registers 0 
+        regs1 
+        (alist_add 1 
+            (lookup_default 1 0 regs2) 
+                regs2) *)
+    rewrite <- EQ_registers_add ; try reflexivity.
+    (* this comes from the Symmetric relations typeclass *)
+    apply symmetry.
+    exact eqregs.
+Qed.
+
+End retvalonly.
 
 Module example2.
 (* now show that these to basic blocks are similar 
