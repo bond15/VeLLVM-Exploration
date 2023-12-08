@@ -216,12 +216,41 @@ Definition my_EQ (t1 t2 : ktree_fin E 1 1) : Prop :=
         (interp_asm (t1 f0) initialMemState initialRegState)
         (interp_asm (t2 f0) initialMemState initialRegState).
 
+
+(* cheating:
+    - removing Exit from asm programs
+    - force substituting in denoted asm *)
 Lemma demo : my_EQ asm0 asm1.
 Proof.
     unfold my_EQ.
 
+    (* wait... this works!*)
+    setoid_rewrite bb0Itree.
+    unfold denbb0.
+    setoid_rewrite bind_ret_l.
+    rewrite interp_asm_SetReg.
 
+    setoid_rewrite bb1Itree.
+    unfold denbb1.
+    setoid_rewrite bind_bind.
+    setoid_rewrite interp_asm_GetReg.
+    setoid_rewrite bind_bind.
+    setoid_rewrite interp_asm_GetReg.
+    rewrite interp_asm_SetReg.
+
+    (* wtf to do with exit *)
+    unfold interp_asm.
+    unfold interp_map.
+    unfold interp_state.
+    (* evaluation to the rescue *)
+    cbn. 
+    reflexivity.
+Qed.
+(*  This proof is for the no exit version 
     (* no exit *)
+    Restart. (* Undo. *)
+    unfold my_EQ.
+
     rewrite bb0ItreeEQNoExit.
     unfold denbb0NoExit.
     setoid_rewrite bind_ret_l.
@@ -234,13 +263,17 @@ Proof.
     rewrite interp_asm_GetReg.
     rewrite interp_asm_SetReg.
     setoid_rewrite interp_asm_ret.
-
-
+    unfold ret.
+    cbn.
     rewrite <- eutt_Ret.
-
     unfold rel_asm.
-
     constructor.
+    - reflexivity.
+    - constructor.
+    * reflexivity.
+    * reflexivity.
+Qed.   
+*) 
 
 
 
