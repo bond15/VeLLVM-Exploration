@@ -163,19 +163,57 @@ Module section4.
 (* iteration and recursion laws 
 https://github.com/DeepSpec/InteractionTrees/blob/dda104937d79e2052d1a26f6cbe89429245ff743/theories/Basics/CategoryFacts.v#L753C7-L753C25
 theories/basic/categoryfacts
+
+https://github.com/DeepSpec/InteractionTrees/blob/dda104937d79e2052d1a26f6cbe89429245ff743/theories/Core/KTreeFacts.v#L280
+theories/basic/KTreeFacts
 *)
 Check iter. 
 Check loop. 
 Check loop_natural_left.
 Check loop_vanishing_1.
 Check loop_dinatural.
+
+
+Check bind_iter.
+Check eutt_iter'.
+Check unfold_iter.
+Check unfold_iter_ktree.
+Check iter_codiagonal_ktree.
+Check cat_iter.
+
+
 End section4.
+
+Module section5.
+
+(* commuting / pushing in the denotation 
+https://github.com/DeepSpec/InteractionTrees/blob/dda104937d79e2052d1a26f6cbe89429245ff743/tutorial/AsmCombinators.v#L221
+tutorial/AsmCombinators
+*)
+Check denote_after.
+Check denote_blk_append.
+Check denote_list_app.
+Check raw_asm_correct.
+Check raw_asm_block_correct.
+Check pure_asm_correct.
+Check id_asm_correct.
+Check relabel_bks_correct.
+Check relabel_asm_correct.
+Check app_bks_correct.
+Check app_asm_correct.
+Check loop_asm_correct.
+
+
+
+End section5.
+
 
 
 Module tactics.
 
 Print cat_auto.
-End tactic.
+
+End tactics.
 
 
 

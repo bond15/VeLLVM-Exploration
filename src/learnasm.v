@@ -590,6 +590,11 @@ Proof.
     unfold denote_asm.
     unfold denote_bks.
     simpl.
+    unfold loop.
+Admitted.   
+(*
+    cbn.
+
 
     (* close, but things are blocked by the "loop" construct*)
     Check loop.
@@ -600,14 +605,14 @@ Proof.
         Handler (E F : Type -> Type) := E ~> Itree F.
 
     *)
-    Print loop.
-
+    rewrite loop_vanishing_1.
 
     (* well, probably need to understand this..
         one definition in 455 CategoryOps
     
     
     *)
+
     unfold loop.
     cat_auto. 
     cbn.
@@ -622,17 +627,38 @@ Proof.
     (* compute. too aggresive *)
     reflexivity.
 Qed.
-*)
+*)*)
 
 (* this one "stays in the abstraction"
    but breaks rewrites.*)
-Lemma bb0Itree : asm0 f0 ≈ ((v <- Ret 4;; trigger (SetReg 3 v));; exit).
+
+Definition denbb0 : itree (Reg +' E) (fin 1)
+    :=  ((v <- Ret 4;; trigger (SetReg 3 v));; exit).
+Lemma bb0Itree : asm0 f0 ≈ denbb0.
 Proof.
     unfold asm0.
+    unfold denbb0.
     rewrite raw_asm_block_correct.
     unfold denote_bk. 
     reflexivity.
 Qed.
+
+(*
+Lemma interpbb0 : my_interp (denote_asm asm0)
+≈ my_interp ((v <- Ret 4;; trigger (SetReg 3 v));; exit).
+*)
+
+Lemma interpbb0 : 
+    (my_interp (asm0 f0) initialState)
+    ≈ 
+    (my_interp denbb0 initialState).
+Admitted.
+(*
+    congruence.
+    (* cant this just be interpeter congruence?....
+    is my_interp missing typeclass instances?? *)
+    rewrite bb0Itree.
+*)
 
 
 Definition eq_regprog'
@@ -641,11 +667,24 @@ Definition eq_regprog'
             (my_interp (t1 f0) initialState)
             (my_interp (t2 f0) initialState).
 Lemma result3 : eq_regprog' asm0 asm1.
-Proof.
+Admitted.
+(*
     unfold eq_regprog'.
+    rewrite interpbb0.
+    unfold denbb0.
+    rewrite my_interp_ret.
+
+    unfold asm0.
+
+    unfold denote_asm.
+    unfold my_interp.
+    rewrite interp_loop.
+
+    (* cheat 
     rewrite bb0Itreeeq.
     rewrite my_interp_bind.
     rewrite my_interp_ret.
+    *)
 
     setoid_rewrite  bb0Itree.
 
@@ -715,9 +754,43 @@ Proof.
         evaluate denotation ?
     *)
     setoid_rewrite raw_asm_block_correct.
+*)
+
 
 
 End help.
+
+
+Module no_more_my_interp.
+(* assuming there are type class issus with my interpeter
+  just use the prebaked interpreter for asm *)
+
+  Definition bb0 : block (fin 1) := 
+    after [
+        Imov 3 (Oimm 4)
+    ] (Bhalt).
+    
+    Definition bb1 : block (fin 1) := 
+    after [
+        Iadd 3 1 (Oreg 2)
+    ] (Bhalt).
+    (*
+    Notation denote_bk := (denote_bk (E := E)).
+    Notation denote_bks := (denote_bks (E := E)).
+    Notation denote_asm := (denote_asm (E := E)).
+    
+    *)
+    (* 
+      ktree_fin E A B 
+        := 
+      sub (ktree E) fin A B
+        := 
+      fin A -> itree E (fin B)
+    *)
+    
+    Definition asm0 : ktree_fin (Reg +' E) 1 1 := denote_asm (raw_asm_block bb0).
+    Definition asm1 : ktree_fin (Reg +' E) 1 1 := denote_asm (raw_asm_block bb1).
+
 
 (* Now use interp_asm instead of my_interp*)
 
