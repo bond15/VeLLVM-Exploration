@@ -187,18 +187,19 @@ End exact_eq_example.
 
 Module help.
 
-(*((lv <- trigger (GetReg 1);;
-rv <- Ret 1;; trigger (SetReg 1 (lv + rv)));;
-(lv <- trigger (GetReg 1);;
-rv <- Ret 1;; trigger (SetReg 1 (lv + rv)));; 
-Ret tt)))*)
+(*setup context*)
+Context {E : Type -> Type}.
+Context {HasRegs : Reg -< E}.
+Context {HasMemory : Memory -< E}.
+Context {HasExit : Exit -< E}.
 
-Definition prog1 : itree Reg nat := Ret 7.
-Definition prog2 : itree Reg nat := 
+
+Definition prog1 : itree (Reg +' E) nat := Ret 7.
+Definition prog2 : itree (Reg +' E) nat := 
 ( 
     trigger (SetReg 1 7) ;;
-    lv <- trigger (GetReg 1);;  
-    Ret lv
+    v <- trigger (GetReg 1);;  
+    Ret v
 ).
     
 (*
@@ -213,14 +214,89 @@ Definition h_reg {E: Type -> Type} `{mapE reg 0 -< E}
 
 (* SEE here https://github.com/DeepSpec/InteractionTrees/blob/dda104937d79e2052d1a26f6cbe89429245ff743/tutorial/Asm.v#L317C29-L317C64
 *)
-Definition my_interp {E A} (t : itree (Reg +' E) A):
-    registers -> itree E (registers * A).
-intros regs.
-eapply interp_map ; try exact regs.
+
+(* 
+alist := fun K V : Type => list (K * V)
+reg := nat
+value := nat
+Definition registers := alist reg value. *)
+
+Definition my_interp {A} (t : itree (Reg +' E) A):
+    registers -> itree E (registers * A) :=
+    let h := bimap h_reg (id_ _) in 
+    let t' := interp h t in 
+    fun regs => interp_map t' regs.
+
+Definition example_interp  : itree E (registers * nat)
+    := my_interp prog2 [(1,0)].
+
+Compute (burn 100 example_interp).
+(* Ret ([(1, 7)], 7) *)
+
+Check prod_rel.
+Check relationH.
+
+(* 
+EQ_registers = 
+fun (d : value) (regs1 regs2 : registers) => eq_map regs1 regs2
+	 : value -> registers -> registers -> Prop
+*)
+
+Definition rel_regprogs {B} : registers * B -> registers * B -> Prop:= 
+    prod_rel (EQ_registers 0) eq.
+(* Influenced from line 109 ASM optimizations *)
+Definition eq_register_program_denotations_EQ {A B}
+    (t1 t2 : Kleisli (itree (Reg +' E)) A B) : Prop :=
+    forall (a : A) (regs1 regs2 :registers),
+        EQ_registers 0 regs1 regs2 ->
+        (eutt rel_regprogs)
+            (my_interp (t1 a) regs1)
+            (my_interp (t2 a) regs2).
+
+Definition kprog1 : ktree (Reg +' E) unit nat 
+    := fun _ => prog1.
+Definition kprog2 : ktree (Reg +' E) unit nat 
+    := fun _ => prog2.
 
 
+Lemma my_interp_GetReg {A} f r reg : 
+    @eutt E _ _ (@rel_regprogs A)
+        (my_interp (val <- trigger (GetReg r) ;; f val) reg)
+        ((my_interp (f (lookup_default r 0 reg))) reg).
+Admitted.
 
-registers -> itree E (registers * A)
+Lemma my_interp_SetReg { A} f r v  reg :
+  @eutt E _ _ (@rel_regprogs A)
+       (my_interp (trigger (SetReg r v) ;; f)  reg)
+       ((my_interp f)  (Maps.add r v reg)).
+Admitted.
+
+Lemma result : eq_register_program_denotations_EQ kprog1 kprog2.
+Proof.
+    unfold eq_register_program_denotations_EQ. 
+    intros x regs1 regs2 eqregs.
+
+    unfold kprog1.
+    unfold prog1.
+    unfold kprog2.
+    unfold prog2.
+
+    setoid_rewrite my_interp_SetReg.
+    setoid_rewrite my_interp_GetReg.
+    cbn.
+
+    (* almost! *)
+
+    setoid_rewrite interp_ret.
+
+    cbn.
+    Check interp_bind.
+    unfold my_interp,interp_map.
+    unfold id_, Id_Handler, Handler.id_.
+
+    
+
+
 
 End help.
 
