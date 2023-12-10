@@ -167,7 +167,8 @@ Admitted.
 Lemma bb1ItreeEQ : asm1 f0 = denbb1.
 Admitted.
 
-Lemma interp_asm_exit {E} : forall (t : itree (Reg +' Memory +' Exit +' E) unit),
+
+Lemma interp_asm_exit : forall (t : itree E unit),
     (interp_asm exit) ≡ (interp_asm (t ;; Ret tt)).
 Proof.
     intros.
@@ -277,6 +278,88 @@ Qed.
 *) 
 End basicdemo.
 
+Module debug.
+(* does fixing an E break things? *)
+Definition bb1 : block (fin 2):= 
+after [
+    Imov 1 (Oimm 0)
+] (Bbrz 1 f0 (fS f0)).
+
+Definition a_bb1 : asm 1 2 := raw_asm_block bb1.
+
+Context {E' : Type -> Type}.
+Context {HasRegs : Reg -< E'}.
+Context {HasMemory : Memory -< E'}.
+Context {HasExit : Exit -< E'}.
+
+Definition E := Reg +' Memory +' Exit +' E'.
+
+Notation denote_bk := (denote_bk (E := E)).
+Notation denote_bks := (denote_bks (E := E)).
+Notation denote_asm := (denote_asm (E := E)).
+
+
+Lemma den_bb1 : denote_asm a_bb1 ⩯
+(fun _ : fin 1 =>
+ (
+    v <- Ret 0;; 
+    trigger (SetReg 1 v));;
+    val <- trigger (GetReg 1);;
+    (if val : nat
+    then Ret f0 
+    else Ret (fS f0))).
+Proof. 
+    unfold a_bb1.
+    setoid_rewrite raw_asm_block_correct_lifted.
+    unfold bb1.
+    reflexivity.
+Qed.
+
+Lemma pointfree (p: asm 1 2)(t :ktree_fin E 1 2) :
+    denote_asm p ⩯ t ->
+    denote_asm p f0 ≈ t f0.
+Admitted.
+
+Lemma den_bb1_pt : 
+    denote_asm a_bb1 f0 
+≈
+    (fun (_ : fin 1) => 
+ (
+    v <- Ret 0;; 
+    trigger (SetReg 1 v));;
+    val <- trigger (GetReg 1);;
+    (if val : nat
+    then Ret f0 
+    else Ret (fS f0))) (f0 : fin 1).
+Proof.
+    apply pointfree.
+    setoid_rewrite den_bb1.
+    reflexivity.
+Qed.
+
+
+(**
+Global Instance fack {B : Type}: (Proper
+(eutt (E := E) rel_asm ==>
+ eutt (E := E) rel_asm ==> Basics.flip Basics.impl)
+(eutt eq)).
+Admitted.
+*)
+Lemma interp_asm_bb1 : 
+(interp_asm (denote_asm a_bb1 f0) [] []) 
+≈
+(interp_asm (denote_asm a_bb1 f0) [] []) 
+.
+Proof.
+    rewrite den_bb1_pt.
+    Check interp_asm_ret.
+
+    setoid_rewrite bind_bind.
+    setoid_rewrite bind_ret_.
+ Admitted.   
+  (*  setoid_rewrite interp_asm_SetReg . *)
+
+End debug.
 
 Module deadbranch.
 
@@ -518,7 +601,7 @@ Proof.
     unfold bb1.
     reflexivity.
 Qed.
-
+(*
 Lemma den_bb1_pt : 
     denote_asm a_bb1 f0 
 ≈
@@ -531,6 +614,28 @@ Lemma den_bb1_pt :
     else Ret (fS f0)).
 Proof.
 Admitted.
+*)
+
+Lemma pointfree2 (p: asm 1 2)(t :ktree_fin E 1 2) :
+    denote_asm p ⩯ t ->
+    denote_asm p f0 ≈ t f0.
+Admitted.
+Lemma den_bb1_pt : 
+    denote_asm a_bb1 f0 
+≈
+    (fun (_ : fin 1) => 
+ (
+    v <- Ret 0;; 
+    trigger (SetReg 1 v));;
+    val <- trigger (GetReg 1);;
+    (if val : nat
+    then Ret f0 
+    else Ret (fS f0))) (f0 : fin 1).
+Proof.
+    apply pointfree2.
+    setoid_rewrite den_bb1.
+    reflexivity.
+Qed.
 
 
 Lemma den_bb2 : denote_asm a_bb2 ⩯
@@ -669,21 +774,114 @@ Qed.
  (case_ (denote_asm a_bb2 >>> inl_) (denote_asm a_bb3 >>> inr_) >>>
   denote_asm a_bb4)) f0 ≈ Ret f0*)
 
+
+(* need to push f0 into the terms*)
 Lemma asdfasdf : 
     (denote_asm a_bb1' >>> denote_asm a_bb3') f0 
     ≈ 
     (n <- denote_asm a_bb1' f0 ;; denote_asm a_bb3' n) .
-Admitted.
-
-
-Lemma blarg : (denote_asm prog1 f0) ≈  Ret f0.
 Proof.
-    setoid_rewrite den_prog1'.
     cbn.
+    reflexivity.
+Qed.
+(* well that was easy.. generalize it*)
+
+(*
+Check to_bif.
+
+Check f0.
+Print fin.
+Print fold_to_itree'.
+
+
+
+Program Definition split_fin_sum 
+  : fin (2) -> (fin 1) + (fin 1) := fun x =>
+    match lt_dec (proj1_sig x) 1 with
+    | left _ => inl (fi' (proj1_sig x))
+    | right _ => inr (fi' (proj1_sig x - 1))
+    end.
+
+
+
+*)
+
+Lemma den_iprog1_point : iprog1 ≈ 
+(y <- denote_asm a_bb1 f0;;
+y0 <- bimap (denote_asm a_bb2) (denote_asm a_bb3) y;;
+denote_asm a_bb4 y0).
+Proof.    unfold iprog1.
+unfold kprog1.
+
+Local Opaque Asm.denote_asm.
+setoid_rewrite den_prog1'.
+
+unfold CategoryOps.cat, Cat_sub, CategoryOps.cat, Cat_Kleisli; simpl.
+reflexivity.
+Qed.
 
     
-Admitted.
+(*
+Lemma blarg : (denote_asm prog1 f0) ≈  Ret f0.
+Proof.
+    setoid_rewrite den_iprog1_point.
+    cbn.
+*)
+(*
+Check interp_asm (E := E).
+Lemma wtf {r m x r' m' x'}: interp_asm
+(trigger (SetReg 1 0);;
+ Ret(m , (r , x)))
+[] [] ≈ Ret (m', (r', x')).
+*)
 
+(*
+Lemma interp_asm_bb1 (t : itree (Exit +' E') (memory * (registers * fin 2))): 
+(interp_asm (denote_asm a_bb1 f0) [] []) 
+≈
+  t.
+Proof.
+    rewrite den_bb1_pt.
+    Check interp_asm_ret.
+
+    setoid_rewrite bind_bind.
+    setoid_rewrite bind_ret_.
+    
+    setoid_rewrite interp_asm_SetReg .
+
+    Check @interp_asm_SetReg E (fin 2) _ 1 0 [] [].
+
+
+    setoid_rewrite (@interp_asm_SetReg E (fin 2) _ 1 0 [] []).
+
+    setoid_rewrite interp_asm_ret.
+
+
+    setoid_rewrite interp_asm_bind.
+    setoid_rewrite interp_asm_bind.
+    setoid_rewrite interp_asm_ret.
+    Check interp_asm_ret.
+    setoid_rewrite bind_ret_.
+    Check reg.
+    Check @interp_asm_SetReg E (fin 2) _ 1 0 [] [].
+    
+    setoid_rewrite interp_asm_SetReg.
+    apply eutt_clo_bind.
+    Check eutt_clo_bind_l.
+    setoid_rewrite  eutt_clo_bind.
+
+    setoid_rewrite 
+
+
+    unfold ret.
+    simpl.
+
+    setoid_rewrite bind_ret_l.
+    setoid_rewrite interp_asm_SetReg.
+    Check bind_ret_.
+
+    rewrite interp_asm
+*)
 Print my_EQ.
 (* show that the dead branch can be eliminated *)
 Lemma deadbranch : my_EQ iprog1 iprog2.
@@ -691,7 +889,63 @@ Proof.
     unfold my_EQ.
     unfold iprog1.
     unfold kprog1.
-    setoid_rewrite blarg.
+    setoid_rewrite den_iprog1_point.
+    setoid_rewrite den_bb1_pt.
+    setoid_rewrite bind_bind.
+    setoid_rewrite bind_ret_.
+    setoid_rewrite interp_asm_SetReg.
+    setoid_rewrite bind_bind.
+    setoid_rewrite interp_asm_GetReg.
+    simpl.
+    setoid_rewrite bind_ret_.
+
+    (* uhg *)
+    setoid_rewrite interp_asm
+
+
+
+
+    setoid_rewrite interp_asm_bind.
+    (*setoid_rewrite interp_asm_bb1.*)
+
+    setoid_rewrite interp_asm_bind.
+    setoid_rewrite interp_asm_bind.
+    setoid_rewrite interp_asm_bind.
+    setoid_rewrite interp_asm_ret.
+    unfold ret.
+    simpl.
+    setoid_rewrite bind_ret_.
+    setoid_rewrite bind_bind.
+    setoid_rewrite bind_bind.
+
+    Check interp_asm_SetReg.
+
+    setoid_rewrite  eutt_clo_bind.
+    2:{setoid_rewrite interp_asm_SetReg. }
+    
+    setoid_rewrite interp_asm_SetReg.
+
+    setoid_rewrite interp_asm_bind.
+
+
+
+
+
+    cbn.
+    setoid_rewrite interp_asm_SetReg.
+    unfold ret. 
+
+
+    cbn.
+
+
+    setoid_rewrite interp_asm_ret.
+
+    rewrite interp_asm_bind.
+    setoid_rewrite interp_asm_bind.
+    setoid_rewrite interp_asm_bind.
+
+
     setoid_rewrite interp_asm_ret.
     Check interp_asm.
     Check den_prog1.
