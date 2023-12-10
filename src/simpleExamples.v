@@ -638,6 +638,8 @@ Proof.
 Qed.
 
 
+
+
 Lemma den_bb2 : denote_asm a_bb2 ⩯
 (fun _ : fin 1 => (
     v <- Ret 3;; 
@@ -648,6 +650,20 @@ Proof.
     setoid_rewrite raw_asm_block_correct_lifted.
     unfold bb2.
     simpl.
+    reflexivity.
+Qed.
+
+Check denote_asm a_bb2.
+Lemma den_bb2_pt : 
+    denote_asm a_bb2 (f0 : fin 1) 
+≈
+(fun _ : fin 1 => (
+    v <- Ret 3;; 
+    trigger (SetReg 2 v));; 
+    Ret f0) f0.   
+Proof.
+    apply pointfree.
+    setoid_rewrite den_bb2.
     reflexivity.
 Qed.
 
@@ -677,6 +693,17 @@ Proof.
     unfold bb4.
     reflexivity.
 Qed.
+
+Lemma den_bb4_pt : denote_asm a_bb4 f0 ≈
+(fun _ : fin 2 => 
+(
+    lv <- trigger (GetReg 2);;
+    rv <- Ret 1;; 
+    trigger (SetReg 2 (lv + rv))
+);; exit) f0.
+Proof.
+    Check pointfree.
+Admitted.
 
 Lemma den_bb1' : denote_asm a_bb1' ⩯
 (fun _ : fin 1 => (
@@ -717,6 +744,8 @@ Proof.
     simpl.
     reflexivity.
 Qed.
+
+
 
 (*  TODO check this claim 
     we cannot prove
@@ -898,6 +927,35 @@ Proof.
     setoid_rewrite interp_asm_GetReg.
     simpl.
     setoid_rewrite bind_ret_.
+    (* block 1 processed *)
+    cbn.
+    setoid_rewrite bind_ret_.
+    replace (fi' _) with (f0 : fin 1) by
+      (apply unique_fin; simpl; auto).
+    setoid_rewrite den_bb2_pt.
+    (* opened up block 2*)
+    setoid_rewrite bind_ret_.
+    setoid_rewrite bind_bind.
+    setoid_rewrite bind_bind.
+    setoid_rewrite interp_asm_SetReg.
+    setoid_rewrite bind_ret_.
+    (* what do do with from_bif ?*)
+    unfold from_bif, FromBifunctor_ktree_fin . cbn.
+    setoid_rewrite bind_ret_.
+    (* setup for block 4*)
+    Check unique_f0.
+    rewrite (unique_f0 (fi' 0)).
+    Compute (@fi' 0 ).
+
+    setoid_rewrite den_bb4.
+    Check @fi'.
+    replace (fi' 0) with (f0 : fin 1).
+    replace (fi' 0) with (f0 : fin 1) by
+    (apply unique_fin; simpl; auto).
+    
+    Compute (from_bif (inl (f0 : fin 1))).
+
+
 
     (* uhg *)
     setoid_rewrite interp_asm
