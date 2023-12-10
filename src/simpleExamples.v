@@ -1027,7 +1027,60 @@ Proof.
     - rewrite H. reflexivity.
 Admitted. 
     
+(*
+Ltac interp_asm_step :=
+        try setoid_rewrite interp_asm_Load;
+        try setoid_rewrite interp_asm_Store;
+        try setoid_rewrite interp_asm_SetReg;
+        try setoid_rewrite interp_asm_GetReg;
+        try setoid_rewrite bind_ret_ ;
+        try setoid_rewrite bind_bind.
 
+Ltac interp_asm := 
+    repeat interp_asm_step.
+
+    *)
+Ltac getsetRegMem := 
+    match goal with 
+    (* get reg *)
+    | |- (eutt rel_asm 
+            (interp_asm 
+                (_ <- trigger (GetReg _);; _) 
+                _ _)
+            _) 
+        => setoid_rewrite interp_asm_GetReg
+    | |- (eutt rel_asm 
+            _ 
+            (interp_asm 
+                (_ <- trigger (GetReg _);; _) 
+                _ _)) 
+        => setoid_rewrite interp_asm_GetReg
+    (* set reg *)
+    | |- (eutt rel_asm
+            (interp_asm
+                (trigger (SetReg _ _);; _)
+                _ _ )
+           _)
+        => setoid_rewrite interp_asm_SetReg
+    | |- (eutt rel_asm
+            _ 
+            (interp_asm
+                (trigger (SetReg _ _);; _)
+                _ _ )
+            )
+    => setoid_rewrite interp_asm_SetReg
+    end.
+
+Ltac interp_asm_step :=
+    getsetRegMem
+||
+    setoid_rewrite bind_ret_ 
+||
+    setoid_rewrite bind_bind.
+
+Ltac interp_asm := 
+    repeat interp_asm_step.
+        
 Lemma deadbranch : my_EQ iprog1 iprog2.
 Proof. 
      unfold my_EQ.
@@ -1099,6 +1152,54 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma deadbranch_tac : my_EQ iprog1 iprog2.
+Proof. 
+     unfold my_EQ.
+    unfold iprog1.
+    unfold kprog1.
+    (* unfold iprog1 *)
+    setoid_rewrite den_iprog1_point.
+    (* process bb1 *)
+    setoid_rewrite den_bb1_pt.
+    interp_asm.
+    simpl.
+    (* Determine next block  *)
+    replace (fi' _) with (f0 : fin 1) by
+      (apply unique_fin; simpl; auto).
+    (* process bb3 *)
+    setoid_rewrite den_bb3_pt.
+    interp_asm.
+    simpl.
+    (* process input to bb4 
+        (to determine which branch jump came from)
+    *)
+    unfold from_bif, FromBifunctor_ktree_fin . cbn.
+    replace (fi' 0) with (f0 : fin 2).
+    2:{ unfold f0.  apply (symmetry jesus). }
+    (* process bb4 *)
+    setoid_rewrite den_bb4_pt.
+    interp_asm.
+    simpl.
+    (* prog1 has been processed
+       it resulted in 3 updates to the registers map *)
+
+    (* now prog2 *)
+    unfold iprog2.
+    unfold kprog2.
+    setoid_rewrite den_iprog2_point.
+    (* process bb1' *)
+    setoid_rewrite den_bb1'_pt.
+    interp_asm.
+    (* process bb3' *)
+    setoid_rewrite den_bb3'_pt.
+    interp_asm.
+    (* process bb4' *)
+    setoid_rewrite den_bb4'_pt.
+    interp_asm.
+    (* prog2 has been processed 
+        it resulted in the same 3 updates to the reigsters map *)
+    reflexivity.
+Qed.
 
 
 
