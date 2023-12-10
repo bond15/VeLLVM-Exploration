@@ -402,7 +402,6 @@ Module deadbranch.
 
     bonus: after block fusion
 
-
     bb1:
         r1 := 0
         r2 := 4
@@ -1152,6 +1151,8 @@ Proof.
     reflexivity.
 Qed.
 
+
+
 Lemma deadbranch_tac : my_EQ iprog1 iprog2.
 Proof. 
      unfold my_EQ.
@@ -1201,6 +1202,244 @@ Proof.
     reflexivity.
 Qed.
 
+
+(* next step
+after dead branch
+
+bb1:
+    r1 := 0
+    Bjmp bb3
+bb3:
+    r2 := 4
+    Bjmp bb4
+bb4:
+    r2 := r2 + 1
+
+bonus: after block fusion
+
+
+bb5:
+    r1 := 0
+    r2 := 4
+    r2 := r2 + 1
+
+*)
+
+Definition bb5 : block (fin 1) := 
+after [
+    Imov 1 (Oimm 0);
+    Imov 2 (Oimm 4);
+    Iadd 2 2 (Oimm 1)
+] (Bhalt).
+
+
+
+Definition a_bb5 : asm 1 1 
+    := raw_asm_block bb5.
+
+
+Lemma den_bb5 : denote_asm a_bb5 ⩯
+(fun _ : fin 1 =>
+    (v <- Ret 0;; trigger (SetReg 1 v));;
+    (v <- Ret 4;; trigger (SetReg 2 v));;
+    (lv <- trigger (GetReg 2);;
+    rv <- Ret 1;; trigger (SetReg 2 (lv + rv)));; exit).
+Proof.
+    unfold a_bb5.
+    setoid_rewrite raw_asm_block_correct_lifted.
+    unfold bb5.
+    simpl.
+    reflexivity.
+Qed.
+    
+Lemma den_bb5_pt : denote_asm a_bb5 f0
+≈
+(fun _ : fin 1 =>
+    (v <- Ret 0;; trigger (SetReg 1 v));;
+    (v <- Ret 4;; trigger (SetReg 2 v));;
+    (lv <- trigger (GetReg 2);;
+    rv <- Ret 1;; trigger (SetReg 2 (lv + rv)));; exit)f0.
+Proof.
+apply pointfree.
+setoid_rewrite den_bb5.
+reflexivity.
+Qed.
+
+Definition kprog3 : ktree_fin E 1 1 
+    := denote_asm a_bb5.
+
+Definition iprog3 : itree E (fin 1)
+    := kprog3 f0.
+
+Lemma fuseBlocks : 
+    my_EQ iprog2 iprog3.
+Proof.
+    unfold my_EQ.
+    (* interpret prog2 *)
+    unfold iprog2.
+    unfold kprog2.
+    setoid_rewrite den_iprog2_point.
+    (* interp bb1' *)
+    setoid_rewrite den_bb1'_pt.
+    interp_asm.
+    (* interp bb3' *)
+    setoid_rewrite den_bb3'_pt.
+    interp_asm.
+    (* interp bb4' *)
+    setoid_rewrite den_bb4'_pt.
+    interp_asm.
+
+    (* interp prog3 *)
+    unfold iprog3.
+    unfold kprog3.
+    (* interp bb5 *)
+    setoid_rewrite den_bb5_pt.
+    interp_asm.
+    simpl.
+    (* both programs perform the same updates to registers *)
+    reflexivity.
+Qed.
+
+(* next step 
+
+bb5:
+    r1 := 0
+    r2 := 4
+    r2 := r2 + 1
+
+after constant propogation
+and constant folding
+
+bb6: 
+    r1 := 0
+    r2 := 5
+
+*)
+
+Definition bb6 : block (fin 1) := 
+after [
+    Imov 1 (Oimm 0);
+    Imov 2 (Oimm 5)
+] Bhalt.
+
+Definition a_bb6 : asm 1 1 := raw_asm_block bb6.
+
+Lemma den_bb6 : denote_asm a_bb6 ⩯
+(fun _ : fin 1 =>
+ (v <- Ret 0;; trigger (SetReg 1 v));;
+ (v <- Ret 5;; trigger (SetReg 2 v));; exit).
+Proof.
+    unfold a_bb6.
+    setoid_rewrite raw_asm_block_correct_lifted.
+    unfold bb6.
+    simpl.
+    reflexivity.
+Qed.
+    
+Lemma den_bb6_pt : denote_asm a_bb6 f0
+≈
+(fun _ : fin 1 =>
+ (v <- Ret 0;; trigger (SetReg 1 v));;
+ (v <- Ret 5;; trigger (SetReg 2 v));; exit)f0.
+Proof.
+apply pointfree.
+setoid_rewrite den_bb6.
+reflexivity.
+Qed.
+
+
+Definition kprog4 : ktree_fin E 1 1 
+    := denote_asm a_bb6.
+
+Definition iprog4 : itree E (fin 1)
+    := kprog4 f0.
+
+Lemma constantPropAndFold : my_EQ iprog3 iprog4.
+Proof.
+    unfold my_EQ.
+    (* interp prog3 *)
+    unfold iprog3.
+    unfold kprog3.
+    (* interp bb5 *)
+    setoid_rewrite den_bb5_pt.
+    interp_asm.
+    simpl.
+
+    (* interp prog4 *)
+    unfold iprog4.
+    unfold kprog4.
+    (* interp bb6 *)
+    setoid_rewrite den_bb6_pt.
+    interp_asm.
+    simpl.
+
+    (* program 3 perfroms the updates
+        (alist_add 2 5 
+        (alist_add 2 4 
+        (alist_add 1 0 [])))
+
+       program 4 performs the updates
+        (alist_add 2 5 
+        (alist_add 1 0 []))
+
+        since 
+            r2 := 5 
+        shaddows
+            r2 :=4
+        
+        these two updates are equal!
+
+        *)
+    reflexivity.
+Qed.
+
+(* our relation my_Eq is an equivalence *)
+
+Global Instance my_EQ_refl : Reflexive (my_EQ).
+red.
+intros.
+unfold my_EQ.
+apply ReflexiveH_Reflexive.
+typeclasses eauto.
+Qed.
+
+Global Instance my_EQ_sym : Symmetric (my_EQ).
+red.
+intros.
+unfold my_EQ.
+apply  SymmetricH_Symmetric.
+- typeclasses eauto.
+- exact H.
+Qed. 
+
+Global Instance my_EQ_trans : Transitive (my_EQ).
+red.
+unfold my_EQ.
+intros!.
+eapply TransitiveH_Transitive.
+- typeclasses eauto.
+- exact H.
+- exact H0.
+Qed. 
+
+Global Instance my_EQ_eqv : Equivalence (my_EQ).
+constructor; typeclasses eauto.
+Qed.
+
+(* so by transitivity of the my_EQ relation,
+    we have prog1 ~ prog4 *)
+
+Lemma full_transform : my_EQ iprog1 iprog4.
+Proof.
+    eapply transitive.
+    - apply deadbranch.
+    - eapply transitive.
+        * apply fuseBlocks.
+        * apply constantPropAndFold.
+    Unshelve.
+    apply my_EQ_trans.
+    apply my_EQ_trans.
+Qed.
 
 
 
