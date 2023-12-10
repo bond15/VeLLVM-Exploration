@@ -601,6 +601,7 @@ Proof.
     unfold bb1.
     reflexivity.
 Qed.
+Print prog1.
 (*
 Lemma den_bb1_pt : 
     denote_asm a_bb1 f0 
@@ -718,6 +719,18 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma den_bb1'_pt : 
+    denote_asm a_bb1' f0 
+≈
+(v <- Ret 0;; trigger (SetReg 1 v));; Ret f0.
+Proof.
+    unfold a_bb1'.
+    setoid_rewrite raw_asm_block_correct.
+    unfold denote_bk.
+    cbn.
+    reflexivity.
+Qed.
+
 Lemma den_bb3' : denote_asm a_bb3' ⩯
 (fun _ : fin 1 => (
     v <- Ret 4;; 
@@ -729,6 +742,18 @@ Proof.
     unfold bb3'.
     simpl.
     reflexivity.
+Qed.
+
+Lemma den_bb3'_pt : denote_asm a_bb3' f0
+≈
+(fun _ : fin 1 => (
+    v <- Ret 4;; 
+    trigger (SetReg 2 v));; 
+    Ret f0) f0.
+Proof.
+apply pointfree.
+setoid_rewrite den_bb3'.
+reflexivity.
 Qed.
 
 Lemma den_bb4' : denote_asm a_bb4' ⩯
@@ -745,7 +770,18 @@ Proof.
     reflexivity.
 Qed.
 
-
+Lemma den_bb4'_pt : denote_asm a_bb4' f0
+≈
+(fun _ : fin 1 => (
+    lv <- trigger (GetReg 2);;
+    rv <- Ret 1;; 
+    trigger (SetReg 2 (lv + rv)))
+    ;; exit) f0.
+Proof.
+apply pointfree.
+setoid_rewrite den_bb4'.
+reflexivity.
+Qed.
 
 (*  TODO check this claim 
     we cannot prove
@@ -799,6 +835,30 @@ Proof.
     apply den_prog1.
 Qed.
 
+Lemma den_prog2 : 
+    denote_asm prog2 
+⩯ 
+    denote_asm a_bb1' >>>
+    (denote_asm a_bb3' >>>
+    denote_asm a_bb4').
+Proof.
+    unfold prog2.
+    setoid_rewrite seq_asm_correct.
+    setoid_rewrite seq_asm_correct.
+    reflexivity.
+Qed.
+
+Lemma den_prog2': 
+    denote_asm prog2 f0
+≈
+    (denote_asm a_bb1' >>>
+    (denote_asm a_bb3' >>>
+    denote_asm a_bb4')) f0.
+Proof.
+    apply pointed.
+    apply den_prog2.
+Qed.
+
 (* (denote_asm a_bb1 >>>
  (case_ (denote_asm a_bb2 >>> inl_) (denote_asm a_bb3 >>> inr_) >>>
   denote_asm a_bb4)) f0 ≈ Ret f0*)
@@ -839,11 +899,27 @@ Lemma den_iprog1_point : iprog1 ≈
 (y <- denote_asm a_bb1 f0;;
 y0 <- bimap (denote_asm a_bb2) (denote_asm a_bb3) y;;
 denote_asm a_bb4 y0).
-Proof.    unfold iprog1.
+Proof.    
+unfold iprog1.
 unfold kprog1.
 
 Local Opaque Asm.denote_asm.
 setoid_rewrite den_prog1'.
+
+unfold CategoryOps.cat, Cat_sub, CategoryOps.cat, Cat_Kleisli; simpl.
+reflexivity.
+Qed.
+
+Lemma den_iprog2_point : iprog2 ≈ 
+(y <- denote_asm a_bb1' f0;;
+y0 <- denote_asm a_bb3' y;;
+denote_asm a_bb4' y0).
+Proof.    
+unfold iprog2.
+unfold kprog2.
+
+Local Opaque Asm.denote_asm.
+setoid_rewrite den_prog2'.
 
 unfold CategoryOps.cat, Cat_sub, CategoryOps.cat, Cat_Kleisli; simpl.
 reflexivity.
@@ -914,8 +990,8 @@ Proof.
 Print my_EQ.
 (* show that the dead branch can be eliminated *)
 Lemma deadbranch : my_EQ iprog1 iprog2.
-Proof.
-    unfold my_EQ.
+Proof. 
+     unfold my_EQ.
     unfold iprog1.
     unfold kprog1.
     setoid_rewrite den_iprog1_point.
@@ -943,6 +1019,30 @@ Proof.
     unfold from_bif, FromBifunctor_ktree_fin . cbn.
     setoid_rewrite bind_ret_.
     (* setup for block 4*)
+
+    (* or what if i work on rhs? *)
+    unfold iprog2.
+    unfold kprog2.
+    setoid_rewrite den_iprog2_point.
+    setoid_rewrite den_bb1'_pt.
+    (* open block 1' *)
+    setoid_rewrite bind_bind.
+    setoid_rewrite bind_ret_.
+    setoid_rewrite interp_asm_SetReg.
+    (* open block 3' *)
+    setoid_rewrite den_bb3'_pt.
+    setoid_rewrite bind_bind.
+    setoid_rewrite bind_ret_.
+    setoid_rewrite interp_asm_SetReg.
+    (* open block 4 *)
+    simpl.
+
+    reflexivity.
+
+
+
+
+
     Check unique_f0.
     rewrite (unique_f0 (fi' 0)).
     Compute (@fi' 0 ).
