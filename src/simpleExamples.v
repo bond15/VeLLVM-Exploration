@@ -4,6 +4,7 @@ Strings.String
 Morphisms
 ZArith
 Setoid
+Logic.EqdepFacts
 RelationClasses.
 
 (*Turning off some of the notation 
@@ -453,7 +454,7 @@ Definition a_bb4 : asm 2 1 := raw_asm (fun _ => bb4).
 
 
 Definition middle : asm (1 + 1) (1 + 1) 
-    := app_asm a_bb2 a_bb3. (* tensor product *)
+    := app_asm a_bb3 a_bb2. (* tensor product *)
 Definition bottom : asm (1 + 1) 1
     := seq_asm middle a_bb4. (* loop combinator + renaming *)
 Definition prog1 : asm 1 1 
@@ -681,6 +682,18 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma den_bb3_pt : denote_asm a_bb3 f0
+≈
+(fun _ : fin 1 => (
+    v <- Ret 4;; 
+    trigger (SetReg 2 v));; 
+    Ret f0)f0.
+Proof.
+apply pointfree.
+setoid_rewrite den_bb3.
+reflexivity.
+Qed.
+
 Lemma den_bb4 : denote_asm a_bb4 ⩯
 (fun _ : fin 2 => 
 (
@@ -809,8 +822,8 @@ Lemma den_prog1 :
 ⩯ 
     denote_asm a_bb1 >>>
     (bimap 
-        (denote_asm a_bb2) 
-        (denote_asm a_bb3) >>>
+        (denote_asm a_bb3) 
+        (denote_asm a_bb2) >>>
     denote_asm a_bb4).
     unfold prog1.
 
@@ -827,8 +840,8 @@ Lemma den_prog1' :
 ≈ 
     (denote_asm a_bb1 >>>
     (bimap 
-        (denote_asm a_bb2) 
-        (denote_asm a_bb3) >>>
+        (denote_asm a_bb3) 
+        (denote_asm a_bb2) >>>
     denote_asm a_bb4)) f0.
 Proof.
     apply pointfree.
@@ -897,7 +910,7 @@ Program Definition split_fin_sum
 
 Lemma den_iprog1_point : iprog1 ≈ 
 (y <- denote_asm a_bb1 f0;;
-y0 <- bimap (denote_asm a_bb2) (denote_asm a_bb3) y;;
+y0 <- bimap (denote_asm a_bb3) (denote_asm a_bb2) y;;
 denote_asm a_bb4 y0).
 Proof.    
 unfold iprog1.
@@ -988,13 +1001,41 @@ Proof.
     rewrite interp_asm
 *)
 Print my_EQ.
+Compute exist.
+Print fin.
+Print fi'.
+Print exist.
+Compute @fi' 0.
+Compute @exist nat (fun j : nat => _) 0 .
+(*Lemma fiii : (f0 : fin (S 2)) = @fi' 0.
+*)
+(*(exist (fun j : nat => j < S n) p). *)
 (* show that the dead branch can be eliminated *)
+
+Lemma jesus : 
+@exist nat (fun j : nat => lt j 2) 0
+    (Nat.lt_lt_add_r 0 1 1 (Fin.f0_obligation_1 0))
+=
+ @exist nat (fun j : nat => lt j 2) 0
+    (Fin.f0_obligation_1 1).
+Proof.
+    apply eq_dep_eq_sig.
+    assert (
+        (Fin.f0_obligation_1 1) 
+      = (Nat.lt_lt_add_r 0 1 1 (Fin.f0_obligation_1 0))).
+    - Check Nat.lt_lt_add_r. admit.
+    - rewrite H. reflexivity.
+Admitted. 
+    
+
 Lemma deadbranch : my_EQ iprog1 iprog2.
 Proof. 
      unfold my_EQ.
     unfold iprog1.
     unfold kprog1.
+    (* unfold iprog1 *)
     setoid_rewrite den_iprog1_point.
+    (* process bb1 *)
     setoid_rewrite den_bb1_pt.
     setoid_rewrite bind_bind.
     setoid_rewrite bind_ret_.
@@ -1003,120 +1044,61 @@ Proof.
     setoid_rewrite interp_asm_GetReg.
     simpl.
     setoid_rewrite bind_ret_.
-    (* block 1 processed *)
+    (* Determine next block  *)
     cbn.
     setoid_rewrite bind_ret_.
     replace (fi' _) with (f0 : fin 1) by
       (apply unique_fin; simpl; auto).
-    setoid_rewrite den_bb2_pt.
-    (* opened up block 2*)
-    setoid_rewrite bind_ret_.
     setoid_rewrite bind_bind.
+    (* process bb3 *)
+    setoid_rewrite den_bb3_pt.
+    setoid_rewrite bind_ret_.
     setoid_rewrite bind_bind.
     setoid_rewrite interp_asm_SetReg.
     setoid_rewrite bind_ret_.
-    (* what do do with from_bif ?*)
+    (* process input to bb4 
+        (to determine which branch jump came from)
+    *)
     unfold from_bif, FromBifunctor_ktree_fin . cbn.
+    replace (fi' 0) with (f0 : fin 2).
+    2:{ unfold f0.  apply (symmetry jesus). }
+    (* process bb4 *)
+    setoid_rewrite den_bb4_pt.
+    setoid_rewrite bind_bind.
+    setoid_rewrite interp_asm_GetReg.
     setoid_rewrite bind_ret_.
-    (* setup for block 4*)
+    setoid_rewrite interp_asm_SetReg. 
+    simpl.
+    (* prog1 has been processed
+       it resulted in 3 updates to the registers map *)
 
-    (* or what if i work on rhs? *)
+    (* now prog2 *)
     unfold iprog2.
     unfold kprog2.
     setoid_rewrite den_iprog2_point.
+    (* process bb1' *)
     setoid_rewrite den_bb1'_pt.
-    (* open block 1' *)
     setoid_rewrite bind_bind.
     setoid_rewrite bind_ret_.
     setoid_rewrite interp_asm_SetReg.
-    (* open block 3' *)
+    (* process bb3' *)
     setoid_rewrite den_bb3'_pt.
     setoid_rewrite bind_bind.
     setoid_rewrite bind_ret_.
     setoid_rewrite interp_asm_SetReg.
-    (* open block 4 *)
     simpl.
-
-    reflexivity.
-
-
-
-
-
-    Check unique_f0.
-    rewrite (unique_f0 (fi' 0)).
-    Compute (@fi' 0 ).
-
-    setoid_rewrite den_bb4.
-    Check @fi'.
-    replace (fi' 0) with (f0 : fin 1).
-    replace (fi' 0) with (f0 : fin 1) by
-    (apply unique_fin; simpl; auto).
-    
-    Compute (from_bif (inl (f0 : fin 1))).
-
-
-
-    (* uhg *)
-    setoid_rewrite interp_asm
-
-
-
-
-    setoid_rewrite interp_asm_bind.
-    (*setoid_rewrite interp_asm_bb1.*)
-
-    setoid_rewrite interp_asm_bind.
-    setoid_rewrite interp_asm_bind.
-    setoid_rewrite interp_asm_bind.
-    setoid_rewrite interp_asm_ret.
-    unfold ret.
-    simpl.
+    (* process bb4' *)
+    setoid_rewrite den_bb4'_pt.
+    setoid_rewrite bind_bind.
+    setoid_rewrite interp_asm_GetReg.
     setoid_rewrite bind_ret_.
-    setoid_rewrite bind_bind.
-    setoid_rewrite bind_bind.
-
-    Check interp_asm_SetReg.
-
-    setoid_rewrite  eutt_clo_bind.
-    2:{setoid_rewrite interp_asm_SetReg. }
-    
     setoid_rewrite interp_asm_SetReg.
+    simpl.
+    (* prog2 has been processed 
+        it resulted in the same 3 updates to the reigsters map *)
+    reflexivity.
+Qed.
 
-    setoid_rewrite interp_asm_bind.
-
-
-
-
-
-    cbn.
-    setoid_rewrite interp_asm_SetReg.
-    unfold ret. 
-
-
-    cbn.
-
-
-    setoid_rewrite interp_asm_ret.
-
-    rewrite interp_asm_bind.
-    setoid_rewrite interp_asm_bind.
-    setoid_rewrite interp_asm_bind.
-
-
-    setoid_rewrite interp_asm_ret.
-    Check interp_asm.
-    Check den_prog1.
-    Check den_prog1'.
-    setoid_rewrite den_prog1'.
-    Check den_bb1.
-
-    setoid_rewrite den_bb1.
-    
-    (interp_asm
-    ((denote_asm a_bb1 >>>
-      (bimap (denote_asm a_bb2) (denote_asm a_bb3) >>>
-       denote_asm a_bb4)) f0) [] [])
 
 
 
