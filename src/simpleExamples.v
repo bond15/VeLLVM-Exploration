@@ -377,16 +377,7 @@ Proof.
 Qed.
 End basicdemo.
 
-Module deadbranch.
-
-(*
-    transformation where (within a block)
-    if a register is set to 0
-        (track both cases)
-    and then that reg is used for the conditional branch
-    we can convert the conditional branch into a direct jump
-
-*)
+Module transformationPipeline.
 
 (* prove out a simple example *)
 
@@ -417,23 +408,19 @@ Module deadbranch.
 
     bonus: after block fusion
 
-    bb1:
+    bb5:
         r1 := 0
         r2 := 4
         r2 := r2 + 1
 
-    bonus: after constant propogation
-        r1 := 0
-        r2 := 4 + 1
+    after constant propogation
+    & constant folding 
 
-    bonus : after constant folding
-
+    bb6:
         r1 := 0
         r2 := 5
         
-
 *)
-Check fS f0.
 
 (* definition of the basic blocks *)
 Definition bb1 : block (fin 2):= 
@@ -473,14 +460,6 @@ Definition bottom : asm (1 + 1) 1
     := seq_asm middle a_bb4. (* loop combinator + renaming *)
 Definition prog1 : asm 1 1 
     := seq_asm a_bb1 bottom. (* loop combinator + renaming *)
-
-(* idk which is easier to work with 
-Definition top : asm 1 (1 + 1)
-    := seq_asm a_bb1 middle.
-Definition bottom : asm 1 1
-    := seq_asm top a_bb4.
-*)
-
 
 (* prog1 defines this assembly program 
 
@@ -522,7 +501,10 @@ Definition a_bb1' : asm 1 1 := raw_asm_block bb1'.
 Definition a_bb3' : asm 1 1 := raw_asm_block bb3'.
 Definition a_bb4' : asm 1 1 := raw_asm_block bb4'.
 
-Definition prog2 : asm 1 1 := seq_asm a_bb1' (seq_asm a_bb3' a_bb4').
+Definition prog2 : asm 1 1 := 
+        seq_asm  a_bb1' 
+        (seq_asm a_bb3' 
+                 a_bb4').
 
 (* prog2 defines this assembly program
     bb1':
@@ -536,7 +518,7 @@ Definition prog2 : asm 1 1 := seq_asm a_bb1' (seq_asm a_bb3' a_bb4').
 *)
 
 
-Print Exit.
+(* defining the ambient effect type E *)
 Context {E' : Type -> Type}.
 Context {HasRegs : Reg -< E'}.
 Context {HasMemory : Memory -< E'}.
@@ -547,27 +529,6 @@ Definition E := Reg +' Memory +' Exit +' E'.
 Notation denote_bk := (denote_bk (E := E)).
 Notation denote_bks := (denote_bks (E := E)).
 Notation denote_asm := (denote_asm (E := E)).
-
-Lemma pointfree (p: asm 1 1)(t :ktree_fin E 1 1) :
-    denote_asm p ⩯ t ->
-    denote_asm p f0 ≈ t f0.
-Admitted.
-
-Lemma pointed (k1 k2 :ktree_fin E 1 1) :
-     k1 f0 ≈ k2 f0 ->
-    k1 ⩯ k2.
-Admitted.
-
-(* now we denote the assembly programs as itrees *)
-(* NOTE: 
-    ktree := (A -> itree E B)
-    is a useful abstraction for reasoning
-*)
-Definition kprog1 : ktree_fin E 1 1 := denote_asm prog1.
-Definition kprog2 : ktree_fin E 1 1 := denote_asm prog2.
-
-Definition iprog1 : itree E (fin 1):= kprog1 f0.
-Definition iprog2 : itree E (fin 1):= kprog2 f0.
 
 
 (* helper lemmas - move these*)
@@ -581,256 +542,149 @@ Lemma seq_asm_correct {A B C} (ab : asm A B) (bc : asm B C) :
     apply cat_from_loop.
   Qed.
 
+Lemma pointfree (p: asm 1 1)(t :ktree_fin E 1 1) :
+    denote_asm p ⩯ t ->
+    denote_asm p f0 ≈ t f0.
+Admitted.
+
+Lemma pointed (k1 k2 :ktree_fin E 1 1) :
+     k1 f0 ≈ k2 f0 ->
+    k1 ⩯ k2.
+Admitted.
+
+(* Lemma pointfree2 (p: asm 1 2)(t :ktree_fin E 1 2) :
+    denote_asm p ⩯ t ->
+    denote_asm p f0 ≈ t f0.
+Admitted.*)
+
+(* now we denote the assembly programs as itrees *)
+(* NOTE: 
+    ktree := (A -> itree E B)
+    is a useful abstraction for reasoning
+*)
+Definition iprog1 : itree E (fin 1):= denote_asm prog1 f0.
+Definition iprog2 : itree E (fin 1):= denote_asm prog2 f0.
+
+
 (* helper lemmas for denoting each basic block *)
-Lemma den_bb1 : denote_asm a_bb1 ⩯
-(fun _ : fin 1 =>
- (
-    v <- Ret 0;; 
-    trigger (SetReg 1 v));;
-    val <- trigger (GetReg 1);;
-    (if val : nat
-    then Ret f0 
-    else Ret (fS f0))).
-Proof. 
-    unfold a_bb1.
-    setoid_rewrite raw_asm_block_correct_lifted.
-    unfold bb1.
-    reflexivity.
-Qed.
-Print prog1.
-(*
-Lemma den_bb1_pt : 
-    denote_asm a_bb1 f0 
-≈
- (
-    v <- Ret 0;; 
+Lemma den_bb1 : 
+denote_asm a_bb1 f0
+ ≈
+ (  v <- Ret 0;; 
     trigger (SetReg 1 v));;
     val <- trigger (GetReg 1);;
     (if val : nat
     then Ret f0 
     else Ret (fS f0)).
 Proof.
-Admitted.
-*)
-
-Lemma pointfree2 (p: asm 1 2)(t :ktree_fin E 1 2) :
-    denote_asm p ⩯ t ->
-    denote_asm p f0 ≈ t f0.
-Admitted.
-Lemma den_bb1_pt : 
-    denote_asm a_bb1 f0 
-≈
-    (fun (_ : fin 1) => 
- (
-    v <- Ret 0;; 
-    trigger (SetReg 1 v));;
-    val <- trigger (GetReg 1);;
-    (if val : nat
-    then Ret f0 
-    else Ret (fS f0))) (f0 : fin 1).
-Proof.
-    apply pointfree2.
-    setoid_rewrite den_bb1.
+    unfold a_bb1.
+    setoid_rewrite raw_asm_block_correct.
+    unfold bb1.
     reflexivity.
 Qed.
 
-
-
-
-Lemma den_bb2 : denote_asm a_bb2 ⩯
-(fun _ : fin 1 => (
-    v <- Ret 3;; 
+Lemma den_bb2 : denote_asm a_bb2 f0
+≈ 
+(   v <- Ret 3;; 
     trigger (SetReg 2 v));; 
-    Ret f0).
+    Ret f0.
 Proof.
     unfold a_bb2.
-    setoid_rewrite raw_asm_block_correct_lifted.
+    setoid_rewrite raw_asm_block_correct.
     unfold bb2.
-    simpl.
     reflexivity.
 Qed.
 
-Check denote_asm a_bb2.
-Lemma den_bb2_pt : 
-    denote_asm a_bb2 (f0 : fin 1) 
+Lemma den_bb3 : denote_asm a_bb3 f0 
 ≈
-(fun _ : fin 1 => (
-    v <- Ret 3;; 
-    trigger (SetReg 2 v));; 
-    Ret f0) f0.   
-Proof.
-    apply pointfree.
-    setoid_rewrite den_bb2.
-    reflexivity.
-Qed.
-
-Lemma den_bb3 : denote_asm a_bb3 ⩯
-(fun _ : fin 1 => (
+(
     v <- Ret 4;; 
     trigger (SetReg 2 v));; 
-    Ret f0).
+    Ret f0.
 Proof.
     unfold a_bb3.
-    setoid_rewrite raw_asm_block_correct_lifted.
+    setoid_rewrite raw_asm_block_correct.
     unfold bb3.
-    simpl.
     reflexivity.
 Qed.
 
-Lemma den_bb3_pt : denote_asm a_bb3 f0
+
+Inductive relf0 : fin 2 -> fin 1 ->  Prop :=
+| is_f0 : relf0 f0 f0.
+
+Lemma uhg : 
+denote_asm (raw_asm (fun _ : fin 2 => bb4)) f0
 ≈
-(fun _ : fin 1 => (
-    v <- Ret 4;; 
-    trigger (SetReg 2 v));; 
-    Ret f0)f0.
+denote_asm (raw_asm_block bb4) (f0 : fin 1).
 Proof.
-apply pointfree.
-setoid_rewrite den_bb3.
-reflexivity.
-Qed.
-
-Lemma den_bb4 : denote_asm a_bb4 ⩯
-(fun _ : fin 2 => 
-(
-    lv <- trigger (GetReg 2);;
-    rv <- Ret 1;; 
-    trigger (SetReg 2 (lv + rv))
-);; exit).
-Proof.
-    unfold a_bb4.
-    setoid_rewrite raw_asm_correct.
-    unfold bb4.
-    reflexivity.
-Qed.
-
-Lemma den_bb4_pt : denote_asm a_bb4 f0 ≈
-(fun _ : fin 2 => 
-(
-    lv <- trigger (GetReg 2);;
-    rv <- Ret 1;; 
-    trigger (SetReg 2 (lv + rv))
-);; exit) f0.
-Proof.
-    Check pointfree.
+    cbn.
+    eapply eutt_clo_bind.
+    - Unshelve. 2:{ exact relf0.  }
 Admitted.
 
-Lemma den_bb1' : denote_asm a_bb1' ⩯
-(fun _ : fin 1 => (
-    v <- Ret 0;; 
-    trigger (SetReg 1 v));; 
-    Ret f0).
+Lemma den_bb4 : denote_asm a_bb4 f0 ≈
+(
+    lv <- trigger (GetReg 2);;
+    rv <- Ret 1;; 
+    trigger (SetReg 2 (lv + rv))
+);; exit.
 Proof.
-    unfold a_bb1'.
-    setoid_rewrite raw_asm_block_correct_lifted.
-    unfold bb1'.
-    simpl.
-    reflexivity.
-Qed.
-
-Lemma den_bb1'_pt : 
-    denote_asm a_bb1' f0 
-≈
-(v <- Ret 0;; trigger (SetReg 1 v));; Ret f0.
-Proof.
-    unfold a_bb1'.
+    unfold a_bb4.
+    setoid_rewrite uhg.
     setoid_rewrite raw_asm_block_correct.
-    unfold denote_bk.
     cbn.
     reflexivity.
 Qed.
 
-Lemma den_bb3' : denote_asm a_bb3' ⩯
-(fun _ : fin 1 => (
-    v <- Ret 4;; 
+
+Lemma den_bb1' : denote_asm a_bb1' f0 ≈
+(
+    v <- Ret 0;; 
+    trigger (SetReg 1 v));; 
+    Ret f0.
+Proof.
+    unfold a_bb1'.
+    setoid_rewrite raw_asm_block_correct.
+    unfold bb1'.
+    reflexivity.
+Qed.
+
+Lemma den_bb3' : denote_asm a_bb3' f0
+≈
+(   v <- Ret 4;; 
     trigger (SetReg 2 v));; 
-    Ret f0).
+    Ret f0.
 Proof.
     unfold a_bb3'.
-    setoid_rewrite raw_asm_block_correct_lifted.
+    setoid_rewrite raw_asm_block_correct.
     unfold bb3'.
-    simpl.
     reflexivity.
 Qed.
 
-Lemma den_bb3'_pt : denote_asm a_bb3' f0
+Lemma den_bb4' : denote_asm a_bb4' f0
 ≈
-(fun _ : fin 1 => (
-    v <- Ret 4;; 
-    trigger (SetReg 2 v));; 
-    Ret f0) f0.
-Proof.
-apply pointfree.
-setoid_rewrite den_bb3'.
-reflexivity.
-Qed.
-
-Lemma den_bb4' : denote_asm a_bb4' ⩯
-(fun _ : fin 1 => (
+(
     lv <- trigger (GetReg 2);;
     rv <- Ret 1;; 
     trigger (SetReg 2 (lv + rv)))
-    ;; exit).
+    ;; exit.
 Proof.
     unfold a_bb4'.
-    setoid_rewrite raw_asm_block_correct_lifted.
+    setoid_rewrite raw_asm_block_correct.
     unfold bb4'.
-    simpl.
     reflexivity.
 Qed.
 
-Lemma den_bb4'_pt : denote_asm a_bb4' f0
-≈
-(fun _ : fin 1 => (
-    lv <- trigger (GetReg 2);;
-    rv <- Ret 1;; 
-    trigger (SetReg 2 (lv + rv)))
-    ;; exit) f0.
-Proof.
-apply pointfree.
-setoid_rewrite den_bb4'.
-reflexivity.
-Qed.
+Notation "x ≋ y" := ((eutt rel_asm) x y)(at level 50).
 
-(*  TODO check this claim 
-    we cannot prove
-        iprog1 ≈ iprog2
-
-    That is because ≈ only says when two programs
-        are syntacticaly similar.
-
-    - explain rel_asm
-    - explain use concrete initial state
-*)
-
-(* make syntax for this *)
 Definition my_EQ (t1 t2 : itree E (fin 1)) : Prop :=
-    (eutt rel_asm)
         (interp_asm t1 [] [])
+    ≋
         (interp_asm t2 [] []).
 
 
 
-Definition foo : itree E (fin 1) := Ret f0.
-Definition bar : ktree_fin E 1 1 := fun _ => foo.
 Lemma den_prog1 : 
-    denote_asm prog1 
-⩯ 
-    denote_asm a_bb1 >>>
-    (bimap 
-        (denote_asm a_bb3) 
-        (denote_asm a_bb2) >>>
-    denote_asm a_bb4).
-    unfold prog1.
-
-    setoid_rewrite seq_asm_correct.
-    unfold bottom.
-    setoid_rewrite seq_asm_correct.
-    unfold middle.
-    setoid_rewrite app_asm_correct.
-    reflexivity.
-Qed.
-
-Lemma den_prog1' : 
     denote_asm prog1 f0
 ≈ 
     (denote_asm a_bb1 >>>
@@ -840,7 +694,13 @@ Lemma den_prog1' :
     denote_asm a_bb4)) f0.
 Proof.
     apply pointfree.
-    apply den_prog1.
+    unfold prog1.
+    setoid_rewrite seq_asm_correct.
+    unfold bottom.
+    setoid_rewrite seq_asm_correct.
+    unfold middle.
+    setoid_rewrite app_asm_correct.
+    reflexivity.
 Qed.
 
 Lemma den_prog2 : 
@@ -867,10 +727,6 @@ Proof.
     apply den_prog2.
 Qed.
 
-(* (denote_asm a_bb1 >>>
- (case_ (denote_asm a_bb2 >>> inl_) (denote_asm a_bb3 >>> inr_) >>>
-  denote_asm a_bb4)) f0 ≈ Ret f0*)
-
 
 (* need to push f0 into the terms*)
 Lemma asdfasdf : 
@@ -881,27 +737,7 @@ Proof.
     cbn.
     reflexivity.
 Qed.
-(* well that was easy.. generalize it*)
 
-(*
-Check to_bif.
-
-Check f0.
-Print fin.
-Print fold_to_itree'.
-
-
-
-Program Definition split_fin_sum 
-  : fin (2) -> (fin 1) + (fin 1) := fun x =>
-    match lt_dec (proj1_sig x) 1 with
-    | left _ => inl (fi' (proj1_sig x))
-    | right _ => inr (fi' (proj1_sig x - 1))
-    end.
-
-
-
-*)
 
 Lemma den_iprog1_point : iprog1 ≈ 
 (y <- denote_asm a_bb1 f0;;
@@ -909,10 +745,9 @@ y0 <- bimap (denote_asm a_bb3) (denote_asm a_bb2) y;;
 denote_asm a_bb4 y0).
 Proof.    
 unfold iprog1.
-unfold kprog1.
 
 Local Opaque Asm.denote_asm.
-setoid_rewrite den_prog1'.
+setoid_rewrite den_prog1.
 
 unfold CategoryOps.cat, Cat_sub, CategoryOps.cat, Cat_Kleisli; simpl.
 reflexivity.
@@ -924,7 +759,6 @@ y0 <- denote_asm a_bb3' y;;
 denote_asm a_bb4' y0).
 Proof.    
 unfold iprog2.
-unfold kprog2.
 
 Local Opaque Asm.denote_asm.
 setoid_rewrite den_prog2'.
@@ -945,7 +779,7 @@ Proof.
     assert (
         (Fin.f0_obligation_1 1) 
       = (Nat.lt_lt_add_r 0 1 1 (Fin.f0_obligation_1 0))).
-    - Check Nat.lt_lt_add_r. admit.
+    - admit.
     - rewrite H. reflexivity.
 Admitted. 
     
@@ -1007,11 +841,10 @@ Lemma deadbranch : my_EQ iprog1 iprog2.
 Proof. 
      unfold my_EQ.
     unfold iprog1.
-    unfold kprog1.
     (* unfold iprog1 *)
     setoid_rewrite den_iprog1_point.
     (* process bb1 *)
-    setoid_rewrite den_bb1_pt.
+    setoid_rewrite den_bb1.
     setoid_rewrite bind_bind.
     setoid_rewrite bind_ret_.
     setoid_rewrite interp_asm_SetReg.
@@ -1026,7 +859,7 @@ Proof.
       (apply unique_fin; simpl; auto).
     setoid_rewrite bind_bind.
     (* process bb3 *)
-    setoid_rewrite den_bb3_pt.
+    setoid_rewrite den_bb3.
     setoid_rewrite bind_ret_.
     setoid_rewrite bind_bind.
     setoid_rewrite interp_asm_SetReg.
@@ -1038,7 +871,7 @@ Proof.
     replace (fi' 0) with (f0 : fin 2).
     2:{ unfold f0.  apply (symmetry jesus). }
     (* process bb4 *)
-    setoid_rewrite den_bb4_pt.
+    setoid_rewrite den_bb4.
     setoid_rewrite bind_bind.
     setoid_rewrite interp_asm_GetReg.
     setoid_rewrite bind_ret_.
@@ -1049,21 +882,20 @@ Proof.
 
     (* now prog2 *)
     unfold iprog2.
-    unfold kprog2.
     setoid_rewrite den_iprog2_point.
     (* process bb1' *)
-    setoid_rewrite den_bb1'_pt.
+    setoid_rewrite den_bb1'.
     setoid_rewrite bind_bind.
     setoid_rewrite bind_ret_.
     setoid_rewrite interp_asm_SetReg.
     (* process bb3' *)
-    setoid_rewrite den_bb3'_pt.
+    setoid_rewrite den_bb3'.
     setoid_rewrite bind_bind.
     setoid_rewrite bind_ret_.
     setoid_rewrite interp_asm_SetReg.
     simpl.
     (* process bb4' *)
-    setoid_rewrite den_bb4'_pt.
+    setoid_rewrite den_bb4'.
     setoid_rewrite bind_bind.
     setoid_rewrite interp_asm_GetReg.
     setoid_rewrite bind_ret_.
@@ -1080,18 +912,17 @@ Lemma deadbranch_tac : my_EQ iprog1 iprog2.
 Proof. 
      unfold my_EQ.
     unfold iprog1.
-    unfold kprog1.
     (* unfold iprog1 *)
     setoid_rewrite den_iprog1_point.
     (* process bb1 *)
-    setoid_rewrite den_bb1_pt.
+    setoid_rewrite den_bb1.
     interp_asm.
     simpl.
     (* Determine next block  *)
     replace (fi' _) with (f0 : fin 1) by
       (apply unique_fin; simpl; auto).
     (* process bb3 *)
-    setoid_rewrite den_bb3_pt.
+    setoid_rewrite den_bb3.
     interp_asm.
     simpl.
     (* process input to bb4 
@@ -1101,7 +932,7 @@ Proof.
     replace (fi' 0) with (f0 : fin 2).
     2:{ unfold f0.  apply (symmetry jesus). }
     (* process bb4 *)
-    setoid_rewrite den_bb4_pt.
+    setoid_rewrite den_bb4.
     interp_asm.
     simpl.
     (* prog1 has been processed
@@ -1109,16 +940,15 @@ Proof.
 
     (* now prog2 *)
     unfold iprog2.
-    unfold kprog2.
     setoid_rewrite den_iprog2_point.
     (* process bb1' *)
-    setoid_rewrite den_bb1'_pt.
+    setoid_rewrite den_bb1'.
     interp_asm.
     (* process bb3' *)
-    setoid_rewrite den_bb3'_pt.
+    setoid_rewrite den_bb3'.
     interp_asm.
     (* process bb4' *)
-    setoid_rewrite den_bb4'_pt.
+    setoid_rewrite den_bb4'.
     interp_asm.
     (* prog2 has been processed 
         it resulted in the same 3 updates to the reigsters map *)
@@ -1425,3 +1255,19 @@ Definition deadbranch_block {lbl} (bb : block lbl) :=
     match b with 
     | bbb
 
+End transformationPipeline.
+
+(* TODO deadbranch : asm _ _ -> asm _ _ 
+    deadbranch prog1 => prog2 
+    
+    trivial transformation that only acts on my one program
+
+TODO 
+    does the full transformation thing work when 
+        registers and memory are any configuration?
+    
+
+TODO
+    simple loop
+    
+    *)
