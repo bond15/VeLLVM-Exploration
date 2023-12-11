@@ -1,6 +1,12 @@
 # VeLLVM-Exploration
 Trying Out VeLLVM for a compilers project
 
+# For Instructors
+    All relevant code is under src/demo
+    - exactEqBlocks.v: This is the first part of the demo. It demonstrates basic/syntactic Itree bisimilarity.
+    - bisimilarInstructions.v: This is the second part of the demo. It demonstrates bisimilarity of interpreted instructions.
+    - transformPipelineEx.v: This is the final part of the demo. It demonstrates a series of "assembly transformations" and demonstrates the correctness of these transformations by bisimulation on a concrete program.
+
 ## Build
 coq_makefile -f _CoqProject -o CoqMakefile
 
