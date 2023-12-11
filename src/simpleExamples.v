@@ -57,6 +57,7 @@ Local Open Scope itree_scope.
 
 From ITreeTutorial Require Import Fin Asm AsmCombinators Utils_tutorial.
  
+Check break_match_goal.
 
 Lemma interp_asm_SetReg' {E}  r v mem reg :
   @eutt E _ _ (rel_asm)
@@ -989,18 +990,14 @@ EQ_registers 0 regs1 regs2 ->
      (add 2 4 (add 1 0 regs1)))
   (add 2 5 (add 1 0 regs2)).
 Proof.
-unfold eq_map.
+        unfold eq_map.
         intros.
         destruct k.
         1:{ (* k = 0*)
         unfold lookup_default.
-        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
-        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
-        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
-        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
-        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
+        repeat (rewrite lookup_add_neq ; try typeclasses eauto ; try auto).
         assert (lookup 0 regs1 = lookup 0 regs2).
-        * admit.
+        * admit. 
         * setoid_rewrite H0. reflexivity. }
         destruct k.
         1:{ (* k = 1*)
@@ -1012,11 +1009,7 @@ unfold eq_map.
         rewrite lookup_add_neq ; try typeclasses eauto ; try auto. }
         (* k > 2*)  
         unfold lookup_default.
-        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
-        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
-        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
-        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
-        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
+        repeat (rewrite lookup_add_neq ; try typeclasses eauto ; try auto).
         assert (lookup (S (S (S k))) regs1 = lookup (S (S (S k))) regs2).
         1:{ admit. }
         setoid_rewrite H0.
@@ -1064,8 +1057,7 @@ Proof.
         *)
         unfold interp_asm.
         unfold rel_asm.
-        eapply interp_map_proper; try typeclasses eauto; auto ; try reflexivity.
-        eapply interp_map_proper; try typeclasses eauto; auto ; try reflexivity.
+        repeat (eapply interp_map_proper; try typeclasses eauto; auto ; try reflexivity).
         (* now it is just a matter of showing that the maps are equal*)
 
         apply eq_registers.

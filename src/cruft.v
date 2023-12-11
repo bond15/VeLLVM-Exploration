@@ -135,6 +135,47 @@ Proof.
 Qed.
 
 
+Ltac break_match_hyp :=
+    match goal with
+      | [ H : context [ match ?X with _ => _ end ] |- _] =>
+        match type of X with
+          | sumbool _ _ => destruct X
+          | _ => destruct X eqn:?
+        end
+    end.
+  
+  (** [break_match_goal] looks for a [match] construct in your goal, and
+      destructs the discriminee, while retaining the information about
+      the discriminee's value leading to the branch being taken. *)
+  Ltac break_match_goal :=
+    match goal with
+      | [ |- context [ match ?X with _ => _ end ] ] =>
+        match type of X with
+          | sumbool _ _ => destruct X
+          | _ => destruct X eqn:?
+        end
+    end.
+  
+  (** [break_match] breaks a match, either in a hypothesis or in your
+      goal. *)
+  Ltac break_match := break_match_goal || break_match_hyp.
+  
+  (** [break_let] breaks a destructuring [let] for a pair. *)
+  Ltac break_let :=
+    match goal with
+      | [ H : context [ (let (_,_) := ?X in _) ] |- _ ] => destruct X eqn:?
+      | [ |- context [ (let (_,_) := ?X in _) ] ] => destruct X eqn:?
+    end.
+  
+  Ltac inv_option :=
+    match goal with
+    | h: Some _ = Some _ |-  _ => inv h
+    | h: None   = Some _ |-  _ => inv h
+    | h: Some _ = None   |-  _ => inv h
+    | h: None   = None   |-  _ => inv h
+    end.  
+
+    
 Check H0. 
         unfold EQ_registers in H0.
         unfold eq_map in H0.
@@ -151,6 +192,34 @@ Check H0.
         destruct ( lookup 0 regs1) eqn:HX in e; 
         destruct ( lookup 0 regs2) eqn:HY in e.
         1:{ }  
+
+
+
+        unfold EQ_registers in H.
+        unfold eq_map in H.
+        pose proof (H 0).
+        unfold lookup.
+        unfold lookup_default in H0.
+        remember (lookup 0 regs1) as x ; setoid_rewrite <- Heqx in H0;
+        remember (lookup 0 regs2) as y ; setoid_rewrite <- Heqy in H0.
+        case x,y.
+        1:{ subst. reflexivity. }
+        2:{ pose proof (H 0).         
+            unfold lookup_default in H1.
+            setoid_rewrite <- Heqx in H1.
+            setoid_rewrite <- Heqy in H1.
+        }
+        break_match ; break_match.
+        1:{ subst. auto. rewrite Heqx. rewrite Heqy.
+            setoid_rewrite Heqo. setoid_rewrite Heqo0. 
+            reflexivity. }
+        2:{ subst. setoid_rewrite Heqo in Heqx. inversion Heqx. } 
+        3:{ destruct x . constructor. inversion. }
+        
+        
+        reflexivity. }
+        inv_option.
+
   
 
         remember (lookup 0 regs1) as x.
