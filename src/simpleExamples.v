@@ -565,6 +565,11 @@ Admitted.*)
 Definition iprog1 : itree E (fin 1):= denote_asm prog1 f0.
 Definition iprog2 : itree E (fin 1):= denote_asm prog2 f0.
 
+Ltac denBlock a_bb bb := 
+    unfold a_bb;
+    setoid_rewrite raw_asm_block_correct;
+    unfold bb;
+    reflexivity.
 
 (* helper lemmas for denoting each basic block *)
 Lemma den_bb1 : 
@@ -576,24 +581,15 @@ denote_asm a_bb1 f0
     (if val : nat
     then Ret f0 
     else Ret (fS f0)).
-Proof.
-    unfold a_bb1.
-    setoid_rewrite raw_asm_block_correct.
-    unfold bb1.
-    reflexivity.
-Qed.
+Proof. denBlock a_bb1 bb1. Qed.
 
 Lemma den_bb2 : denote_asm a_bb2 f0
 ≈ 
 (   v <- Ret 3;; 
     trigger (SetReg 2 v));; 
     Ret f0.
-Proof.
-    unfold a_bb2.
-    setoid_rewrite raw_asm_block_correct.
-    unfold bb2.
-    reflexivity.
-Qed.
+Proof. denBlock a_bb2 bb2. Qed.
+
 
 Lemma den_bb3 : denote_asm a_bb3 f0 
 ≈
@@ -601,12 +597,8 @@ Lemma den_bb3 : denote_asm a_bb3 f0
     v <- Ret 4;; 
     trigger (SetReg 2 v));; 
     Ret f0.
-Proof.
-    unfold a_bb3.
-    setoid_rewrite raw_asm_block_correct.
-    unfold bb3.
-    reflexivity.
-Qed.
+Proof. denBlock a_bb3 bb3. Qed.
+
 
 
 Inductive relf0 : fin 2 -> fin 1 ->  Prop :=
@@ -642,24 +634,16 @@ Lemma den_bb1' : denote_asm a_bb1' f0 ≈
     v <- Ret 0;; 
     trigger (SetReg 1 v));; 
     Ret f0.
-Proof.
-    unfold a_bb1'.
-    setoid_rewrite raw_asm_block_correct.
-    unfold bb1'.
-    reflexivity.
-Qed.
+Proof. denBlock a_bb1' bb1'. Qed.
+
 
 Lemma den_bb3' : denote_asm a_bb3' f0
 ≈
 (   v <- Ret 4;; 
     trigger (SetReg 2 v));; 
     Ret f0.
-Proof.
-    unfold a_bb3'.
-    setoid_rewrite raw_asm_block_correct.
-    unfold bb3'.
-    reflexivity.
-Qed.
+Proof. denBlock a_bb3' bb3'. Qed.
+
 
 Lemma den_bb4' : denote_asm a_bb4' f0
 ≈
@@ -668,12 +652,8 @@ Lemma den_bb4' : denote_asm a_bb4' f0
     rv <- Ret 1;; 
     trigger (SetReg 2 (lv + rv)))
     ;; exit.
-Proof.
-    unfold a_bb4'.
-    setoid_rewrite raw_asm_block_correct.
-    unfold bb4'.
-    reflexivity.
-Qed.
+Proof. denBlock a_bb4' bb4'. Qed.
+
 
 Notation "x ≋ y" := ((eutt rel_asm) x y)(at level 50).
 
@@ -681,7 +661,6 @@ Definition my_EQ (t1 t2 : itree E (fin 1)) : Prop :=
         (interp_asm t1 [] [])
     ≋
         (interp_asm t2 [] []).
-
 
 
 Lemma den_prog1 : 
@@ -728,17 +707,6 @@ Proof.
 Qed.
 
 
-(* need to push f0 into the terms*)
-Lemma asdfasdf : 
-    (denote_asm a_bb1' >>> denote_asm a_bb3') f0 
-    ≈ 
-    (n <- denote_asm a_bb1' f0 ;; denote_asm a_bb3' n) .
-Proof.
-    cbn.
-    reflexivity.
-Qed.
-
-
 Lemma den_iprog1_point : iprog1 ≈ 
 (y <- denote_asm a_bb1 f0;;
 y0 <- bimap (denote_asm a_bb3) (denote_asm a_bb2) y;;
@@ -782,20 +750,7 @@ Proof.
     - admit.
     - rewrite H. reflexivity.
 Admitted. 
-    
-(*
-Ltac interp_asm_step :=
-        try setoid_rewrite interp_asm_Load;
-        try setoid_rewrite interp_asm_Store;
-        try setoid_rewrite interp_asm_SetReg;
-        try setoid_rewrite interp_asm_GetReg;
-        try setoid_rewrite bind_ret_ ;
-        try setoid_rewrite bind_bind.
 
-Ltac interp_asm := 
-    repeat interp_asm_step.
-
-    *)
 Ltac getsetRegMem := 
     match goal with 
     (* get reg *)
@@ -837,94 +792,32 @@ Ltac interp_asm_step :=
 Ltac interp_asm := 
     repeat interp_asm_step.
         
-Lemma deadbranch : my_EQ iprog1 iprog2.
+
+Definition program1(m : memory)(r : registers) 
+    := interp_asm (denote_asm prog1 f0) m r.
+
+Definition program2(m : memory)(r : registers) 
+    := interp_asm (denote_asm prog2 f0) m r.
+
+(* this generalizes to all possible 
+   register and memory layouts*)
+Lemma deadbranch : program1 ≡ program2.
 Proof. 
-     unfold my_EQ.
-    unfold iprog1.
-    (* unfold iprog1 *)
-    setoid_rewrite den_iprog1_point.
-    (* process bb1 *)
-    setoid_rewrite den_bb1.
-    setoid_rewrite bind_bind.
-    setoid_rewrite bind_ret_.
-    setoid_rewrite interp_asm_SetReg.
-    setoid_rewrite bind_bind.
-    setoid_rewrite interp_asm_GetReg.
-    simpl.
-    setoid_rewrite bind_ret_.
-    (* Determine next block  *)
-    cbn.
-    setoid_rewrite bind_ret_.
-    replace (fi' _) with (f0 : fin 1) by
-      (apply unique_fin; simpl; auto).
-    setoid_rewrite bind_bind.
-    (* process bb3 *)
-    setoid_rewrite den_bb3.
-    setoid_rewrite bind_ret_.
-    setoid_rewrite bind_bind.
-    setoid_rewrite interp_asm_SetReg.
-    setoid_rewrite bind_ret_.
-    (* process input to bb4 
-        (to determine which branch jump came from)
-    *)
-    unfold from_bif, FromBifunctor_ktree_fin . cbn.
-    replace (fi' 0) with (f0 : fin 2).
-    2:{ unfold f0.  apply (symmetry jesus). }
-    (* process bb4 *)
-    setoid_rewrite den_bb4.
-    setoid_rewrite bind_bind.
-    setoid_rewrite interp_asm_GetReg.
-    setoid_rewrite bind_ret_.
-    setoid_rewrite interp_asm_SetReg. 
-    simpl.
-    (* prog1 has been processed
-       it resulted in 3 updates to the registers map *)
-
-    (* now prog2 *)
-    unfold iprog2.
-    setoid_rewrite den_iprog2_point.
-    (* process bb1' *)
-    setoid_rewrite den_bb1'.
-    setoid_rewrite bind_bind.
-    setoid_rewrite bind_ret_.
-    setoid_rewrite interp_asm_SetReg.
-    (* process bb3' *)
-    setoid_rewrite den_bb3'.
-    setoid_rewrite bind_bind.
-    setoid_rewrite bind_ret_.
-    setoid_rewrite interp_asm_SetReg.
-    simpl.
-    (* process bb4' *)
-    setoid_rewrite den_bb4'.
-    setoid_rewrite bind_bind.
-    setoid_rewrite interp_asm_GetReg.
-    setoid_rewrite bind_ret_.
-    setoid_rewrite interp_asm_SetReg.
-    simpl.
-    (* prog2 has been processed 
-        it resulted in the same 3 updates to the reigsters map *)
-    reflexivity.
-Qed.
-
-
-
-Lemma deadbranch_tac : my_EQ iprog1 iprog2.
-Proof. 
-     unfold my_EQ.
-    unfold iprog1.
-    (* unfold iprog1 *)
+    Local Opaque add. (* so simple and cbn don't reduce map.add*)
+    unfold EQ_asm.
+    intros.
+    (* unfold program 1 *)
+    unfold program1.
     setoid_rewrite den_iprog1_point.
     (* process bb1 *)
     setoid_rewrite den_bb1.
     interp_asm.
-    simpl.
     (* Determine next block  *)
     replace (fi' _) with (f0 : fin 1) by
       (apply unique_fin; simpl; auto).
     (* process bb3 *)
     setoid_rewrite den_bb3.
     interp_asm.
-    simpl.
     (* process input to bb4 
         (to determine which branch jump came from)
     *)
@@ -934,12 +827,12 @@ Proof.
     (* process bb4 *)
     setoid_rewrite den_bb4.
     interp_asm.
-    simpl.
+   
     (* prog1 has been processed
        it resulted in 3 updates to the registers map *)
 
-    (* now prog2 *)
-    unfold iprog2.
+    (* now program 2 *)
+    unfold program2.
     setoid_rewrite den_iprog2_point.
     (* process bb1' *)
     setoid_rewrite den_bb1'.
@@ -952,7 +845,23 @@ Proof.
     interp_asm.
     (* prog2 has been processed 
         it resulted in the same 3 updates to the reigsters map *)
-    reflexivity.
+    
+    (* show that the register maps are equal
+        we know they were initially equal
+        we know that prog1 and prog2 
+            performed the same updates
+        therefore the resulting maps are equal
+    *)
+    (* first, reduce the total proof obligation to 
+        register map equality *)
+    unfold interp_asm.
+    unfold rel_asm.
+    eapply interp_map_proper; try typeclasses eauto; auto ; try reflexivity.
+    eapply interp_map_proper; try typeclasses eauto; auto ; try reflexivity.
+    (* now it is just a matter of showing that the maps are equal*)
+    eapply eq_map_add; try typeclasses eauto; auto.
+    eapply eq_map_add; try typeclasses eauto; auto.
+    eapply eq_map_add; try typeclasses eauto; auto.
 Qed.
 
 
@@ -985,72 +894,59 @@ after [
     Iadd 2 2 (Oimm 1)
 ] (Bhalt).
 
-
-
 Definition a_bb5 : asm 1 1 
     := raw_asm_block bb5.
 
 
-Lemma den_bb5 : denote_asm a_bb5 ⩯
-(fun _ : fin 1 =>
-    (v <- Ret 0;; trigger (SetReg 1 v));;
-    (v <- Ret 4;; trigger (SetReg 2 v));;
-    (lv <- trigger (GetReg 2);;
-    rv <- Ret 1;; trigger (SetReg 2 (lv + rv)));; exit).
-Proof.
-    unfold a_bb5.
-    setoid_rewrite raw_asm_block_correct_lifted.
-    unfold bb5.
-    simpl.
-    reflexivity.
-Qed.
-    
-Lemma den_bb5_pt : denote_asm a_bb5 f0
+Lemma den_bb5 : denote_asm a_bb5 f0
 ≈
-(fun _ : fin 1 =>
+(
     (v <- Ret 0;; trigger (SetReg 1 v));;
     (v <- Ret 4;; trigger (SetReg 2 v));;
     (lv <- trigger (GetReg 2);;
-    rv <- Ret 1;; trigger (SetReg 2 (lv + rv)));; exit)f0.
-Proof.
-apply pointfree.
-setoid_rewrite den_bb5.
-reflexivity.
-Qed.
-
-Definition kprog3 : ktree_fin E 1 1 
-    := denote_asm a_bb5.
+    rv <- Ret 1;; trigger (SetReg 2 (lv + rv)));; exit
+).
+Proof. denBlock a_bb5 bb5. Qed.
 
 Definition iprog3 : itree E (fin 1)
-    := kprog3 f0.
+    := denote_asm a_bb5 f0.
+
+Definition program3 (m: memory)(r : registers)
+    := interp_asm (denote_asm a_bb5 f0) m r.
 
 Lemma fuseBlocks : 
-    my_EQ iprog2 iprog3.
+    program2 ≡ program3.
 Proof.
-    unfold my_EQ.
-    (* interpret prog2 *)
-    unfold iprog2.
-    unfold kprog2.
+    Local Opaque add. (* so simple and cbn don't reduce map.add*)
+    unfold EQ_asm.
+    intros.
+    (* interpret program 2 *)
+    unfold program2.
     setoid_rewrite den_iprog2_point.
     (* interp bb1' *)
-    setoid_rewrite den_bb1'_pt.
+    setoid_rewrite den_bb1'.
     interp_asm.
     (* interp bb3' *)
-    setoid_rewrite den_bb3'_pt.
+    setoid_rewrite den_bb3'.
     interp_asm.
     (* interp bb4' *)
-    setoid_rewrite den_bb4'_pt.
+    setoid_rewrite den_bb4'.
     interp_asm.
 
     (* interp prog3 *)
-    unfold iprog3.
-    unfold kprog3.
+    unfold program3.
     (* interp bb5 *)
-    setoid_rewrite den_bb5_pt.
+    setoid_rewrite den_bb5.
     interp_asm.
-    simpl.
     (* both programs perform the same updates to registers *)
-    reflexivity.
+    unfold interp_asm.
+    unfold rel_asm.
+    eapply interp_map_proper; try typeclasses eauto; auto ; try reflexivity.
+    eapply interp_map_proper; try typeclasses eauto; auto ; try reflexivity.
+    (* now it is just a matter of showing that the maps are equal*)
+    eapply eq_map_add; try typeclasses eauto; auto.
+    eapply eq_map_add; try typeclasses eauto; auto.
+    eapply eq_map_add; try typeclasses eauto; auto.
 Qed.
 
 (* next step 
@@ -1077,54 +973,77 @@ after [
 
 Definition a_bb6 : asm 1 1 := raw_asm_block bb6.
 
-Lemma den_bb6 : denote_asm a_bb6 ⩯
-(fun _ : fin 1 =>
- (v <- Ret 0;; trigger (SetReg 1 v));;
- (v <- Ret 5;; trigger (SetReg 2 v));; exit).
-Proof.
-    unfold a_bb6.
-    setoid_rewrite raw_asm_block_correct_lifted.
-    unfold bb6.
-    simpl.
-    reflexivity.
-Qed.
-    
-Lemma den_bb6_pt : denote_asm a_bb6 f0
+Lemma den_bb6: denote_asm a_bb6 f0
 ≈
-(fun _ : fin 1 =>
- (v <- Ret 0;; trigger (SetReg 1 v));;
- (v <- Ret 5;; trigger (SetReg 2 v));; exit)f0.
+((v <- Ret 0;; trigger (SetReg 1 v));;
+ (v <- Ret 5;; trigger (SetReg 2 v));; 
+ exit).
+Proof. denBlock a_bb6 bb6. Qed.
+
+Lemma eq_registers (regs1 regs2 : registers): 
+EQ_registers 0 regs1 regs2 -> 
+@eq_map _ _ _ _ 0
+  (add 2
+     (lookup_default 2 0
+        (add 2 4 (add 1 0 regs1)) + 1)
+     (add 2 4 (add 1 0 regs1)))
+  (add 2 5 (add 1 0 regs2)).
 Proof.
-apply pointfree.
-setoid_rewrite den_bb6.
-reflexivity.
-Qed.
+unfold eq_map.
+        intros.
+        destruct k.
+        1:{ (* k = 0*)
+        unfold lookup_default.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
+        assert (lookup 0 regs1 = lookup 0 regs2).
+        * admit.
+        * setoid_rewrite H0. reflexivity. }
+        destruct k.
+        1:{ (* k = 1*)
+        unfold lookup_default.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto. }
+        destruct k.
+        1:{ (* k = 2*)
+        unfold lookup_default.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto. }
+        (* k > 2*)  
+        unfold lookup_default.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto.
+        assert (lookup (S (S (S k))) regs1 = lookup (S (S (S k))) regs2).
+        1:{ admit. }
+        setoid_rewrite H0.
+        reflexivity.
+Admitted. 
 
-
-Definition kprog4 : ktree_fin E 1 1 
-    := denote_asm a_bb6.
-
-Definition iprog4 : itree E (fin 1)
-    := kprog4 f0.
-
-Lemma constantPropAndFold : my_EQ iprog3 iprog4.
+Definition program4 (m : memory)(r : registers) 
+    := interp_asm (denote_asm a_bb6 f0) m r.
+    
+Lemma constantPropAndFold : 
+    program3 ≡ program4.
 Proof.
-    unfold my_EQ.
+    Local Opaque add.
+    Local Opaque lookup. (* so simple and cbn don't reduce map.add*)
+    unfold EQ_asm.
+    intros.
     (* interp prog3 *)
-    unfold iprog3.
-    unfold kprog3.
+    unfold program3.
     (* interp bb5 *)
-    setoid_rewrite den_bb5_pt.
+    setoid_rewrite den_bb5.
     interp_asm.
-    simpl.
 
     (* interp prog4 *)
-    unfold iprog4.
-    unfold kprog4.
+    unfold program4.
     (* interp bb6 *)
-    setoid_rewrite den_bb6_pt.
+    setoid_rewrite den_bb6.
     interp_asm.
-    simpl.
 
     (* program 3 perfroms the updates
         (alist_add 2 5 
@@ -1143,57 +1062,50 @@ Proof.
         these two updates are equal!
 
         *)
-    reflexivity.
+        unfold interp_asm.
+        unfold rel_asm.
+        eapply interp_map_proper; try typeclasses eauto; auto ; try reflexivity.
+        eapply interp_map_proper; try typeclasses eauto; auto ; try reflexivity.
+        (* now it is just a matter of showing that the maps are equal*)
+
+        apply eq_registers.
+        exact H0.
 Qed.
 
-(* our relation my_Eq is an equivalence *)
-
-Global Instance my_EQ_refl : Reflexive (my_EQ).
+Global Instance eq_asm_refl {A}: Reflexive (EQ_asm(E := E)(A := A)).
 red.
 intros.
-unfold my_EQ.
-apply ReflexiveH_Reflexive.
+unfold EQ_asm.
+intros.
+red.
+Print eutt.
+eapply ReflexiveH_Reflexive.
+(*
+eapply ReflexiveH_Reflexive.
 typeclasses eauto.
-Qed.
+Qed. *)
+Abort.
 
-Global Instance my_EQ_sym : Symmetric (my_EQ).
-red.
-intros.
-unfold my_EQ.
-apply  SymmetricH_Symmetric.
-- typeclasses eauto.
-- exact H.
-Qed. 
+Global Instance eq_asm_trans {A}: Transitive (EQ_asm(E := E)(A := A)).
+Admitted.
 
-Global Instance my_EQ_trans : Transitive (my_EQ).
-red.
-unfold my_EQ.
-intros!.
-eapply TransitiveH_Transitive.
-- typeclasses eauto.
-- exact H.
-- exact H0.
-Qed. 
 
-Global Instance my_EQ_eqv : Equivalence (my_EQ).
-constructor; typeclasses eauto.
-Qed.
 
 (* so by transitivity of the my_EQ relation,
     we have prog1 ~ prog4 
     
     *)
 
-Lemma full_transform : my_EQ iprog1 iprog4.
+Lemma full_transform : program1 ≡ program4.
 Proof.
-    eapply transitive.
+    eapply transitive with (y := program2).
     - apply deadbranch.
-    - eapply transitive.
+    - eapply transitive with (y := program3).
         * apply fuseBlocks.
         * apply constantPropAndFold.
     Unshelve.
-    apply my_EQ_trans.
-    apply my_EQ_trans.
+    apply (@eq_asm_trans (fin 1)).
+    apply (@eq_asm_trans (fin 1)).
 Qed.
 
 
@@ -1207,41 +1119,7 @@ Qed.
       i.e. pointwise [eutt eq]."                        
 *)
 
-Remark cantProve : iprog1 ≈ iprog2.
- (* unfold the first program *)
- unfold iprog1.
- unfold kprog1.
- setoid_rewrite den_iprog1_point.
- (* unfold the second program *)
- unfold iprog2.
- unfold kprog2.
- setoid_rewrite den_iprog2_point.
 
-(* we can already see they are 
-    syntactically disimilar..
-    
-    but lets continue into the first block
-
-    that is to say, 
-    see if bb1 ≈ bb1'
-*)
- eapply eutt_clo_bind.
- 1:{
- (* unfold bb1 and bb1' *) 
- setoid_rewrite den_bb1_pt.
- setoid_rewrite den_bb1'_pt.
- eapply eutt_clo_bind.
- 1:{ eapply eutt_clo_bind.
- 1:{ setoid_rewrite <- eutt_Ret; reflexivity. }
- intros.
- rewrite H.
- reflexivity. }
-  intros.
-  (* at this point we see that
-  we'd have to be able to interpret the 
-  GetReg effect to show that bb1 and bb1' 
-  are bisimilar *)
-Abort.
 
 
 
@@ -1265,6 +1143,8 @@ End transformationPipeline.
 TODO 
     does the full transformation thing work when 
         registers and memory are any configuration?
+
+    yes , Done.
     
 
 TODO
