@@ -4,7 +4,8 @@ Strings.String
 Morphisms
 ZArith
 Setoid
-RelationClasses.
+RelationClasses
+Logic.EqdepFacts.
 
 (*Turning off some of the notation 
 helps to see what rules might be helpful*)
@@ -107,6 +108,76 @@ Lemma pointed (k1 k2 :ktree_fin E 1 1) :
     k1 ⩯ k2.
 Admitted.
 
+(*
+Inductive relf0 : fin 2 -> fin 1 ->  Prop :=
+| is_f0 : relf0 f0 f0.
+
+Lemma uhg : 
+denote_asm (raw_asm (fun _ : fin 2 => bb4)) f0
+≈
+denote_asm (raw_asm_block bb4) (f0 : fin 1).
+Proof.
+    cbn.
+    eapply eutt_clo_bind.
+    - Unshelve. 2:{ exact relf0.  }
+Admitted.
+*)
+
+(* this is infuriating
+    it boils down to a proof that f0 : fin 1 = f0 : fin 2 
+    but it is dependent type indexed hell
+*)
+Lemma jesus : 
+@exist nat (fun j : nat => lt j 2) 0
+    (Nat.lt_lt_add_r 0 1 1 (Fin.f0_obligation_1 0))
+=
+ @exist nat (fun j : nat => lt j 2) 0
+    (Fin.f0_obligation_1 1).
+Proof.
+    apply eq_dep_eq_sig.
+    assert (
+        (Fin.f0_obligation_1 1) 
+      = (Nat.lt_lt_add_r 0 1 1 (Fin.f0_obligation_1 0))).
+    - admit.
+    - rewrite H. reflexivity.
+Admitted. 
+
+(*
+Lemma eq_registers (regs1 regs2 : registers): 
+EQ_registers 0 regs1 regs2 -> 
+@eq_map _ _ _ _ 0
+  (add 2
+     (lookup_default 2 0
+        (add 2 4 (add 1 0 regs1)) + 1)
+     (add 2 4 (add 1 0 regs1)))
+  (add 2 5 (add 1 0 regs2)).
+Proof.
+        unfold eq_map.
+        intros.
+        destruct k.
+        1:{ (* k = 0*)
+        unfold lookup_default.
+        repeat (rewrite lookup_add_neq ; try typeclasses eauto ; try auto).
+        assert (lookup 0 regs1 = lookup 0 regs2).
+        * admit. 
+        * setoid_rewrite H0. reflexivity. }
+        destruct k.
+        1:{ (* k = 1*)
+        unfold lookup_default.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto. }
+        destruct k.
+        1:{ (* k = 2*)
+        unfold lookup_default.
+        rewrite lookup_add_neq ; try typeclasses eauto ; try auto. }
+        (* k > 2*)  
+        unfold lookup_default.
+        repeat (rewrite lookup_add_neq ; try typeclasses eauto ; try auto).
+        assert (lookup (S (S (S k))) regs1 = lookup (S (S (S k))) regs2).
+        1:{ admit. }
+        setoid_rewrite H0.
+        ref
+*)
+
 (* custom tactics *)
 
 Ltac eutt_clo_bind_eq := 
@@ -149,6 +220,48 @@ Ltac getsetRegMem :=
             
     => setoid_rewrite interp_asm_SetReg
     end.
+
+
+Ltac getsetRegMem' := 
+    match goal with 
+    (* get reg *)
+    | |- (eutt rel_asm 
+            (interp_asm 
+                (_ <- trigger (GetReg _);; _) 
+                _ _)
+            _) 
+        => setoid_rewrite interp_asm_GetReg
+    | |- (eutt rel_asm 
+            _ 
+            (interp_asm 
+                (_ <- trigger (GetReg _);; _) 
+                _ _)) 
+        => setoid_rewrite interp_asm_GetReg
+    (* set reg *)
+    | |- (eutt rel_asm
+            (interp_asm
+                (trigger (SetReg _ _);; _)
+                _ _ )
+           _)
+        => setoid_rewrite interp_asm_SetReg
+    | |- (eutt rel_asm
+            _ 
+            (interp_asm
+                (trigger (SetReg _ _);; _)
+                _ _ )
+            )
+    => setoid_rewrite interp_asm_SetReg
+    end.
+
+Ltac interp_asm_step :=
+    getsetRegMem'
+||
+    setoid_rewrite bind_ret_ 
+||
+    setoid_rewrite bind_bind.
+
+Ltac interp_asm := 
+    repeat interp_asm_step.
 
 Ltac eval_interp' :=
         getsetRegMem

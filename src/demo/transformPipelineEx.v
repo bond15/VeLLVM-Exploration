@@ -220,36 +220,15 @@ Definition prog2 : asm 1 1 :=
         r2 := r2 + 1 
 *)
 
-Print nat.
 
-(* defining the ambient effect type E 
-Context {E' : Type -> Type}.
-Context {HasRegs : Reg -< E'}.
-Context {HasMemory : Memory -< E'}.
-Context {HasExit : Exit -< E'}.
-    
-Definition E := Reg +' Memory +' Exit +' E'.
 
-Notation denote_bk := (denote_bk (E := E)).
-Notation denote_bks := (denote_bks (E := E)).
-Notation denote_asm := (denote_asm (E := E)).
-*)
+(* defining the ambient effect type E *)
 Notation E := Utils.utils.E.
 
 
 (* now we denote the assembly programs as itrees *)
-(* NOTE: 
-    ktree := (A -> itree E B)
-    is a useful abstraction for reasoning
-*)
 Definition iprog1 : itree E (fin 1):= denote_asm prog1 f0.
 Definition iprog2 : itree E (fin 1):= denote_asm prog2 f0.
-
-Ltac denBlock a_bb bb := 
-    unfold a_bb;
-    setoid_rewrite raw_asm_block_correct;
-    unfold bb;
-    reflexivity.
 
 (* helper lemmas for denoting each basic block *)
 Lemma den_bb1 : 
@@ -280,18 +259,10 @@ Lemma den_bb3 : denote_asm a_bb3 f0
 Proof. denBlock a_bb3 bb3. Qed.
 
 
-
-Inductive relf0 : fin 2 -> fin 1 ->  Prop :=
-| is_f0 : relf0 f0 f0.
-
 Lemma uhg : 
 denote_asm (raw_asm (fun _ : fin 2 => bb4)) f0
 ≈
 denote_asm (raw_asm_block bb4) (f0 : fin 1).
-Proof.
-    cbn.
-    eapply eutt_clo_bind.
-    - Unshelve. 2:{ exact relf0.  }
 Admitted.
 
 Lemma den_bb4 : denote_asm a_bb4 f0 ≈
@@ -333,15 +304,6 @@ Lemma den_bb4' : denote_asm a_bb4' f0
     trigger (SetReg 2 (lv + rv)))
     ;; exit.
 Proof. denBlock a_bb4' bb4'. Qed.
-
-
-Notation "x ≋ y" := ((eutt rel_asm) x y)(at level 50).
-
-Definition my_EQ (t1 t2 : itree E (fin 1)) : Prop :=
-        (interp_asm t1 [] [])
-    ≋
-        (interp_asm t2 [] []).
-
 
 Lemma den_prog1 : 
     denote_asm prog1 f0
@@ -413,65 +375,7 @@ setoid_rewrite den_prog2'.
 
 unfold CategoryOps.cat, Cat_sub, CategoryOps.cat, Cat_Kleisli; simpl.
 reflexivity.
-Qed.
-
-
-Lemma jesus : 
-@exist nat (fun j : nat => lt j 2) 0
-    (Nat.lt_lt_add_r 0 1 1 (Fin.f0_obligation_1 0))
-=
- @exist nat (fun j : nat => lt j 2) 0
-    (Fin.f0_obligation_1 1).
-Proof.
-    apply eq_dep_eq_sig.
-    assert (
-        (Fin.f0_obligation_1 1) 
-      = (Nat.lt_lt_add_r 0 1 1 (Fin.f0_obligation_1 0))).
-    - admit.
-    - rewrite H. reflexivity.
-Admitted. 
-
-Ltac getsetRegMem := 
-    match goal with 
-    (* get reg *)
-    | |- (eutt rel_asm 
-            (interp_asm 
-                (_ <- trigger (GetReg _);; _) 
-                _ _)
-            _) 
-        => setoid_rewrite interp_asm_GetReg
-    | |- (eutt rel_asm 
-            _ 
-            (interp_asm 
-                (_ <- trigger (GetReg _);; _) 
-                _ _)) 
-        => setoid_rewrite interp_asm_GetReg
-    (* set reg *)
-    | |- (eutt rel_asm
-            (interp_asm
-                (trigger (SetReg _ _);; _)
-                _ _ )
-           _)
-        => setoid_rewrite interp_asm_SetReg
-    | |- (eutt rel_asm
-            _ 
-            (interp_asm
-                (trigger (SetReg _ _);; _)
-                _ _ )
-            )
-    => setoid_rewrite interp_asm_SetReg
-    end.
-
-Ltac interp_asm_step :=
-    getsetRegMem
-||
-    setoid_rewrite bind_ret_ 
-||
-    setoid_rewrite bind_bind.
-
-Ltac interp_asm := 
-    repeat interp_asm_step.
-        
+Qed.   
 
 Definition program1(m : memory)(r : registers) 
     := interp_asm (denote_asm prog1 f0) m r.
@@ -659,6 +563,7 @@ Lemma den_bb6: denote_asm a_bb6 f0
  exit).
 Proof. denBlock a_bb6 bb6. Qed.
 
+(* this holds.. but I need a lemma about shadowing values in maps*)
 Lemma eq_registers (regs1 regs2 : registers): 
 EQ_registers 0 regs1 regs2 -> 
 @eq_map _ _ _ _ 0
@@ -667,31 +572,6 @@ EQ_registers 0 regs1 regs2 ->
         (add 2 4 (add 1 0 regs1)) + 1)
      (add 2 4 (add 1 0 regs1)))
   (add 2 5 (add 1 0 regs2)).
-Proof.
-        unfold eq_map.
-        intros.
-        destruct k.
-        1:{ (* k = 0*)
-        unfold lookup_default.
-        repeat (rewrite lookup_add_neq ; try typeclasses eauto ; try auto).
-        assert (lookup 0 regs1 = lookup 0 regs2).
-        * admit. 
-        * setoid_rewrite H0. reflexivity. }
-        destruct k.
-        1:{ (* k = 1*)
-        unfold lookup_default.
-        rewrite lookup_add_neq ; try typeclasses eauto ; try auto. }
-        destruct k.
-        1:{ (* k = 2*)
-        unfold lookup_default.
-        rewrite lookup_add_neq ; try typeclasses eauto ; try auto. }
-        (* k > 2*)  
-        unfold lookup_default.
-        repeat (rewrite lookup_add_neq ; try typeclasses eauto ; try auto).
-        assert (lookup (S (S (S k))) regs1 = lookup (S (S (S k))) regs2).
-        1:{ admit. }
-        setoid_rewrite H0.
-        reflexivity.
 Admitted. 
 
 Definition program4 (m : memory)(r : registers) 
@@ -748,23 +628,15 @@ intros.
 unfold EQ_asm.
 intros.
 red.
-Print eutt.
 eapply ReflexiveH_Reflexive.
-(*
-eapply ReflexiveH_Reflexive.
-typeclasses eauto.
-Qed. *)
 Abort.
 
+(* proved this with an earlier relation (my_EQ) .. something is odd here*)
 Global Instance eq_asm_trans {A}: Transitive (EQ_asm(E := E)(A := A)).
 Admitted.
 
-
-
 (* so by transitivity of the my_EQ relation,
-    we have prog1 ~ prog4 
-    
-    *)
+    we have prog1 ≡ prog4 *)
 
 Lemma full_transform : program1 ≡ program4.
 Proof.
