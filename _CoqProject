@@ -18,6 +18,7 @@
 /home/coq/InteractionTrees/tutorial/AsmOptimization.v
 /home/coq/InteractionTrees/tutorial/PrintAssumptions.v
 
-src/simpleExamples.v
-src/learnitreespaper.v
-src/learnasm.v
+src/demo/Utils.v
+src/demo/exactEqBlocks.v
+src/demo/bisimilarInstructions.v
+src/demo/transformPipelineEx.v

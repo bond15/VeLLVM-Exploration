@@ -1,0 +1,214 @@
+DIGEST 7c6ef66f6040f5dfb12a35d09c5cd35c
+FMyProject.src.demo.Utils
+R24:33 Coq.Lists.List <> <> lib
+R35:48 Coq.Strings.String <> <> lib
+R50:58 Coq.Classes.Morphisms <> <> lib
+R60:65 Coq.ZArith.ZArith <> <> lib
+R67:72 Coq.Setoids.Setoid <> <> lib
+R74:88 Coq.Classes.RelationClasses <> <> lib
+R202:208 ITree.Eq.Eqit <> <> lib
+R214:228 ITree.Basics.Category <> <> lib
+R234:262 ITree.Basics.HeterogeneousRelations <> <> lib
+R268:279 ITree.Basics.Monad <> <> lib
+R285:302 ITree.Basics.CategorySub <> <> lib
+R308:325 ITree.Basics.CategoryOps <> <> lib
+R331:348 ITree.Interp.InterpFacts <> <> lib
+R354:370 ITree.Events.MapDefault <> <> lib
+R376:397 ITree.Events.MapDefaultFacts <> <> lib
+R403:414 ITree.Events.State <> <> lib
+R420:436 ITree.Events.StateFacts <> <> lib
+R442:451 ITree.Core.ITreeMonad <> <> lib
+R457:466 ITree.ITreeFacts <> <> lib
+R472:476 ITree.ITree <> <> lib
+R511:521 ExtLib.Core.RelDec <> <> lib
+R527:542 ExtLib.Structures.Monad <> <> lib
+R548:562 ExtLib.Structures.Maps <> <> lib
+R568:583 ExtLib.Programming.Show <> <> lib
+R589:606 ExtLib.Data.Map.FMapAList <> <> lib
+R617:628 ITree.Basics.CategoryOps CatNotations <> mod
+R729:731 ITreeTutorial.Fin <> <> lib
+R738:740 ITreeTutorial.Asm <> <> lib
+R747:760 ITreeTutorial.AsmCombinators <> <> lib
+R767:781 ITreeTutorial.AsmOptimization <> <> lib
+R787:793 ITreeTutorial.Imp2Asm <> <> lib
+R799:806 ITreeTutorial.KTreeFin <> <> lib
+R812:825 ITreeTutorial.Utils_tutorial <> <> lib
+R836:849 ITree.Core.ITreeDefinition ITreeNotations <> mod
+R860:872 Coq.Lists.List ListNotations <> mod
+R908:919 ITree.Basics.CategoryOps CatNotations <> mod
+R1015:1017 ITreeTutorial.Fin <> <> lib
+R1019:1021 ITreeTutorial.Asm <> <> lib
+R1023:1036 ITreeTutorial.AsmCombinators <> <> lib
+R1038:1051 ITreeTutorial.Utils_tutorial <> <> lib
+mod 1062:1066 <> utils
+R1441:1444 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+binder 1432:1433 <> E':1
+R1474:1477 ITree.Core.Subevent <> ::type_scope:x_'-<'_x not
+R1471:1473 ITreeTutorial.Asm <> Reg variant
+R1478:1479 MyProject.src.demo.Utils utils E' prfax
+binder 1461:1467 <> HasRegs:2
+R1510:1513 ITree.Core.Subevent <> ::type_scope:x_'-<'_x not
+R1504:1509 ITreeTutorial.Asm <> Memory ind
+R1514:1515 MyProject.src.demo.Utils utils E' prfax
+binder 1492:1500 <> HasMemory:3
+R1542:1545 ITree.Core.Subevent <> ::type_scope:x_'-<'_x not
+R1538:1541 ITreeTutorial.Asm <> Exit ind
+R1546:1547 MyProject.src.demo.Utils utils E' prfax
+binder 1528:1534 <> HasExit:4
+def 1567:1567 utils E
+R1575:1578 ITree.Indexed.Sum <> ::type_scope:x_'+'''_x not
+R1572:1574 ITreeTutorial.Asm <> Reg variant
+R1585:1588 ITree.Indexed.Sum <> ::type_scope:x_'+'''_x not
+R1579:1584 ITreeTutorial.Asm <> Memory ind
+R1593:1596 ITree.Indexed.Sum <> ::type_scope:x_'+'''_x not
+R1589:1592 ITreeTutorial.Asm <> Exit ind
+R1597:1598 MyProject.src.demo.Utils utils E' prfax
+syndef 1611:1619 utils denote_bk
+R1625:1633 ITreeTutorial.Asm <> denote_bk def
+R1641:1641 MyProject.src.demo.Utils utils E def
+syndef 1655:1664 utils denote_bks
+R1670:1679 ITreeTutorial.Asm <> denote_bks def
+R1687:1687 MyProject.src.demo.Utils utils E def
+syndef 1701:1710 utils denote_asm
+R1716:1725 ITreeTutorial.Asm <> denote_asm def
+R1733:1733 MyProject.src.demo.Utils utils E def
+R1763:1766 ITree.Eq.Eqit <> eutt def
+R1768:1768 MyProject.src.demo.Utils utils E def
+R1775:1781 ITreeTutorial.AsmOptimization <> rel_asm def
+not 1747:1747 utils :::x_'≋'_x
+prf 1830:1844 utils seq_asm_correct
+binder 1847:1847 <> A:5
+binder 1849:1849 <> B:6
+binder 1851:1851 <> C:7
+R1860:1862 ITreeTutorial.Asm <> asm rec
+R1864:1864 MyProject.src.demo.Utils <> A:5 var
+R1866:1866 MyProject.src.demo.Utils <> B:6 var
+binder 1855:1856 <> ab:8
+R1875:1877 ITreeTutorial.Asm <> asm rec
+R1879:1879 MyProject.src.demo.Utils <> B:6 var
+R1881:1881 MyProject.src.demo.Utils <> C:7 var
+binder 1870:1871 <> bc:9
+R1918:1926 ITree.Basics.CategoryOps CatNotations ::cat_scope:x_'⩯'_x not
+R1892:1901 MyProject.src.demo.Utils utils denote_asm syndef
+R1904:1910 ITreeTutorial.Imp2Asm <> seq_asm def
+R1915:1916 MyProject.src.demo.Utils <> bc:9 var
+R1912:1913 MyProject.src.demo.Utils <> ab:8 var
+R1940:1944 ITree.Basics.CategoryOps CatNotations ::cat_scope:x_'>>>'_x not
+R1927:1936 MyProject.src.demo.Utils utils denote_asm syndef
+R1938:1939 MyProject.src.demo.Utils <> ab:8 var
+R1945:1954 MyProject.src.demo.Utils utils denote_asm syndef
+R1956:1957 MyProject.src.demo.Utils <> bc:9 var
+R1980:1986 ITreeTutorial.Imp2Asm <> seq_asm def
+R2001:2016 ITreeTutorial.AsmCombinators <> loop_asm_correct thm
+R2019:2037 ITreeTutorial.AsmCombinators <> relabel_asm_correct thm
+R2040:2054 ITreeTutorial.AsmCombinators <> app_asm_correct thm
+R2001:2016 ITreeTutorial.AsmCombinators <> loop_asm_correct thm
+R2001:2016 ITreeTutorial.AsmCombinators <> loop_asm_correct thm
+R2019:2037 ITreeTutorial.AsmCombinators <> relabel_asm_correct thm
+R2019:2037 ITreeTutorial.AsmCombinators <> relabel_asm_correct thm
+R2040:2054 ITreeTutorial.AsmCombinators <> app_asm_correct thm
+R2040:2054 ITreeTutorial.AsmCombinators <> app_asm_correct thm
+R2069:2076 ITree.Basics.CategoryFunctor <> fmap_id0 thm
+R2079:2086 ITree.Basics.CategoryTheory <> cat_id_r def
+R2089:2097 ITreeTutorial.KTreeFin <> fmap_swap thm
+R2069:2076 ITree.Basics.CategoryFunctor <> fmap_id0 thm
+R2069:2076 ITree.Basics.CategoryFunctor <> fmap_id0 thm
+R2079:2086 ITree.Basics.CategoryTheory <> cat_id_r def
+R2079:2086 ITree.Basics.CategoryTheory <> cat_id_r def
+R2089:2097 ITreeTutorial.KTreeFin <> fmap_swap thm
+R2089:2097 ITreeTutorial.KTreeFin <> fmap_swap thm
+R2110:2122 ITree.Basics.CategoryFacts <> cat_from_loop thm
+R2110:2122 ITree.Basics.CategoryFacts <> cat_from_loop thm
+prf 2139:2147 utils pointfree
+R2153:2155 ITreeTutorial.Asm <> asm rec
+binder 2150:2150 <> p:10
+R2165:2173 ITreeTutorial.KTreeFin <> ktree_fin syndef
+R2175:2175 MyProject.src.demo.Utils utils E def
+binder 2162:2162 <> t:11
+R2206:2213 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2200:2204 ITree.Basics.CategoryOps CatNotations ::cat_scope:x_'⩯'_x not
+R2188:2197 MyProject.src.demo.Utils utils denote_asm syndef
+R2199:2199 MyProject.src.demo.Utils <> p:10 var
+R2205:2205 MyProject.src.demo.Utils <> t:11 var
+R2229:2233 ITree.Eq.Eqit <> ::type_scope:x_'≈'_x not
+R2214:2223 MyProject.src.demo.Utils utils denote_asm syndef
+R2227:2228 ITreeTutorial.Fin <> f0 def
+R2225:2225 MyProject.src.demo.Utils <> p:10 var
+R2234:2234 MyProject.src.demo.Utils <> t:11 var
+R2236:2237 ITreeTutorial.Fin <> f0 def
+prf 2257:2263 utils pointed
+R2273:2281 ITreeTutorial.KTreeFin <> ktree_fin syndef
+R2283:2283 MyProject.src.demo.Utils utils E def
+binder 2266:2267 <> k1:12
+binder 2269:2270 <> k2:13
+R2312:2319 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2302:2306 ITree.Eq.Eqit <> ::type_scope:x_'≈'_x not
+R2297:2298 MyProject.src.demo.Utils <> k1:12 var
+R2300:2301 ITreeTutorial.Fin <> f0 def
+R2307:2308 MyProject.src.demo.Utils <> k2:13 var
+R2310:2311 ITreeTutorial.Fin <> f0 def
+R2322:2326 ITree.Basics.CategoryOps CatNotations ::cat_scope:x_'⩯'_x not
+R2320:2321 MyProject.src.demo.Utils <> k1:12 var
+R2327:2328 MyProject.src.demo.Utils <> k2:13 var
+R2406:2418 ITree.Eq.Eqit <> eutt_clo_bind thm
+R2432:2433 Coq.Init.Logic <> eq ind
+R2553:2573 ITreeTutorial.AsmCombinators <> raw_asm_block_correct thm
+R2791:2791 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R2849:2865 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R2792:2801 ITreeTutorial.Asm <> interp_asm def
+R2817:2820 ITree.Core.ITreeDefinition ITreeNotations ::itree_scope:x_'<-'_x_';;'_x not
+R2839:2841 ITree.Core.ITreeDefinition ITreeNotations ::itree_scope:x_'<-'_x_';;'_x not
+R2821:2827 ITree.Core.Subevent <> trigger syndef
+R2830:2835 ITreeTutorial.Asm <> GetReg constr
+R2791:2791 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R2849:2865 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R2792:2801 ITreeTutorial.Asm <> interp_asm def
+R2817:2820 ITree.Core.ITreeDefinition ITreeNotations ::itree_scope:x_'<-'_x_';;'_x not
+R2839:2841 ITree.Core.ITreeDefinition ITreeNotations ::itree_scope:x_'<-'_x_';;'_x not
+R2821:2827 ITree.Core.Subevent <> trigger syndef
+R2830:2835 ITreeTutorial.Asm <> GetReg constr
+R2925:2943 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R3022:3022 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R2944:2953 ITreeTutorial.Asm <> interp_asm def
+R2974:2977 ITree.Core.ITreeDefinition ITreeNotations ::itree_scope:x_'<-'_x_';;'_x not
+R2996:2998 ITree.Core.ITreeDefinition ITreeNotations ::itree_scope:x_'<-'_x_';;'_x not
+R2978:2984 ITree.Core.Subevent <> trigger syndef
+R2987:2992 ITreeTutorial.Asm <> GetReg constr
+R2925:2943 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R3022:3022 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R2944:2953 ITreeTutorial.Asm <> interp_asm def
+R2974:2977 ITree.Core.ITreeDefinition ITreeNotations ::itree_scope:x_'<-'_x_';;'_x not
+R2996:2998 ITree.Core.ITreeDefinition ITreeNotations ::itree_scope:x_'<-'_x_';;'_x not
+R2978:2984 ITree.Core.Subevent <> trigger syndef
+R2987:2992 ITreeTutorial.Asm <> GetReg constr
+R3098:3098 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R3156:3174 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R3099:3108 ITreeTutorial.Asm <> interp_asm def
+R3147:3149 ITree.Core.ITreeDefinition ITreeNotations ::itree_scope:x_';;'_x not
+R3127:3133 ITree.Core.Subevent <> trigger syndef
+R3136:3141 ITreeTutorial.Asm <> SetReg constr
+R3098:3098 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R3156:3174 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R3099:3108 ITreeTutorial.Asm <> interp_asm def
+R3147:3149 ITree.Core.ITreeDefinition ITreeNotations ::itree_scope:x_';;'_x not
+R3127:3133 ITree.Core.Subevent <> trigger syndef
+R3136:3141 ITreeTutorial.Asm <> SetReg constr
+R3244:3261 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R3320:3321 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R3262:3271 ITreeTutorial.Asm <> interp_asm def
+R3310:3312 ITree.Core.ITreeDefinition ITreeNotations ::itree_scope:x_';;'_x not
+R3290:3296 ITree.Core.Subevent <> trigger syndef
+R3299:3304 ITreeTutorial.Asm <> SetReg constr
+R3244:3261 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R3320:3321 MyProject.src.demo.Utils utils :::x_'≋'_x not
+R3262:3271 ITreeTutorial.Asm <> interp_asm def
+R3310:3312 ITree.Core.ITreeDefinition ITreeNotations ::itree_scope:x_';;'_x not
+R3290:3296 ITree.Core.Subevent <> trigger syndef
+R3299:3304 ITreeTutorial.Asm <> SetReg constr
+R3358:3374 ITreeTutorial.AsmOptimization <> interp_asm_SetReg thm
+R3203:3219 ITreeTutorial.AsmOptimization <> interp_asm_SetReg thm
+R3050:3066 ITreeTutorial.AsmOptimization <> interp_asm_GetReg thm
+R2894:2910 ITreeTutorial.AsmOptimization <> interp_asm_GetReg thm
+R3499:3507 ITree.Eq.Eqit <> bind_bind thm
+R3458:3466 ITree.Eq.Shallow <> bind_ret_ thm
+R3565:3569 MyProject.src.demo.Utils utils <> mod

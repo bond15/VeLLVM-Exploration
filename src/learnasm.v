@@ -193,23 +193,92 @@ Context {E : Type -> Type}.
 Definition den_asm0 :itree E (fin 1) := denote_asm asm0 f0.
 Definition den_asm1 :itree E (fin 1) := denote_asm asm1 f0.
 
+Ltac eutt_clo_bind_eq := 
+        apply (@eutt_clo_bind _ _ _ _ _ _ eq).
 (*≈ means eutt eq *)
 (* This proof demonstrates that two exacly equal blocks are bilimilar*)
 Lemma ExactEqualBlocks : den_asm0 ≈ den_asm1.
 Proof.
 (* unfold definition of asm programs *)
-unfold den_asm0.
-unfold den_asm1.
-unfold asm0.
-unfold asm1.
+unfold den_asm0 ; unfold asm0.
+unfold den_asm1 ; unfold asm1.
+
 (*denote_asm (raw_asm_block b) f0 ≈ denote_bk b*)
 rewrite raw_asm_block_correct.
 rewrite raw_asm_block_correct.
-(* now we can work with just the blocks *)
+(* now we compute the denotation of bb0 and bb1 as 
+   interaction trees  *)
 unfold bb0.
 unfold bb1.
+setoid_rewrite denote_after.
+unfold denote_br .
+unfold denote_list.
+unfold denote_bk.
+unfold traverse_.
+unfold denote_instr.
+unfold denote_operand.
+simpl; repeat setoid_rewrite bind_bind.
+
+(* now that we've computed the denotation 
+   we can prove the bisimularity of itrees*)
+(* peel off  trigger (GetReg 1)*)
+eutt_clo_bind_eq.
+1:{ unfold trigger. 
+    apply eqit_Vis ;intros.
+    apply eqit_Ret.
+    reflexivity.
+} intros ; subst.
+
+(* peel off Ret 1*)
+eutt_clo_bind_eq.
+1:{
+    apply eqit_Ret.
+    reflexivity.
+ }
+intros; subst.
+
+(* peel off trigger (SetReg ...) *)
+unfold trigger ;setoid_rewrite bind_vis.
+eapply eqit_Vis ; intros.
+
+(* peel off Ret u*)
+eutt_clo_bind_eq.
+1:{ 
+    apply eqit_Ret.
+    reflexivity.
+} intros; subst.
+
+(* peel off Ret tt*)
+eutt_clo_bind_eq. 
+apply eqit_Ret ; reflexivity. 
+intros ; subst.
+
+(* finally we have Ret f0*)
+apply eqit_Ret.
 reflexivity.
 Qed.
+
+Lemma short_ExactEqualBlocks : den_asm0 ≈ den_asm1.
+Proof.
+(* compute the denotation as itrees *)
+unfold den_asm0 ; unfold asm0 ; rewrite raw_asm_block_correct;
+unfold den_asm1 ; unfold asm1 ; rewrite raw_asm_block_correct;
+unfold denote_bk ; simpl.
+
+(* they are equal!*)
+reflexivity.
+Qed.
+
+(*denote_asm
+ (raw_asm_block b) f0 ≈ denote_bk b*)
+rewrite raw_asm_block_correct.
+rewrite raw_asm_block_correct.
+(* now we compute the denotation of bb0 and bb1 as 
+   interaction trees  *)
+unfold bb0.
+unfold bb1.
+setoid_rewrite denote_after.
+
 (* How can i just say that they are exactly equal?
     maybe use eq in the relation?
     yea that was it.
@@ -569,7 +638,7 @@ Admitted.
     unfold interp_map.
     repeat setoid_rewrite interp_bind.
     repeat rewrite interp_state_bind.
-
+interp_asm_SetReg'
     rewrite interp_stat
 *)
 
