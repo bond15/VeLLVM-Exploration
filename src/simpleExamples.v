@@ -56,19 +56,37 @@ Local Open Scope cat_scope.
 Local Open Scope itree_scope.
 
 From ITreeTutorial Require Import Fin Asm AsmCombinators Utils_tutorial.
+ 
 
+Lemma interp_asm_SetReg' {E}  r v mem reg :
+  @eutt E _ _ (rel_asm)
+       (interp_asm (trigger (SetReg r v)) mem reg)
+       (Ret (mem, ((Maps.add r v reg),tt))).
+Proof.
+unfold interp_asm, interp_map.
+  unfold trigger.
+  rewrite interp_vis.
+  unfold subevent, resum, ReSum_inl, resum, ReSum_id, id_. cbn.
+  setoid_rewrite interp_ret.
+  setoid_rewrite tau_eutt.
+  repeat rewrite interp_state_bind.
+  unfold Id_IFun.
+  unfold CategoryOps.cat, Cat_Handler, Handler.cat. cbn.
+  unfold inl_, Inl_sum1_Handler, Handler.inl_, Handler.htrigger.
+  unfold insert.
+  setoid_rewrite interp_trigger.
+  repeat rewrite interp_state_trigger_eqit.  cbn.
+  rewrite bind_ret_l, tau_eutt.
+  setoid_rewrite interp_state_ret.
+  rewrite bind_ret_l. cbn.
+  unfold interp_state.
+  unfold interp.
+  unfold pure_state.
+  unfold handle_map.
+  unfold case_.
+Admitted.
 
 Module basicdemo.
-Context {E' : Type -> Type}.
-Context {HasRegs : Reg -< E'}.
-Context {HasMemory : Memory -< E'}.
-Context {HasExit : Exit -< E'}.
-
-Definition E := Reg +' Memory +' Exit +' E'.
-
-Notation denote_bk := (denote_bk (E := E)).
-Notation denote_bks := (denote_bks (E := E)).
-Notation denote_asm := (denote_asm (E := E)).
 
 (* r3 := 4*)
 Definition bb0 : block (fin 1) := 
@@ -82,8 +100,238 @@ after [
     Iadd 3 1 (Oreg 2)
 ] (Bhalt).
 
-Definition asm0 : ktree_fin E 1 1 := denote_asm (raw_asm_block bb0).
-Definition asm1 : ktree_fin E 1 1 := denote_asm (raw_asm_block bb1).
+(* to talk about bisimilarity of these programs
+    we need to denote them as itrees
+
+    to do that, we need to determine what effects (E) we are using.
+
+    We will work with an effect E that 
+        HasRegs:
+            Reg  :=
+	            GetReg : reg -> Reg value 
+              | SetReg : reg -> value -> Reg unit.
+
+        HasMemory:
+            Memory := 
+                Load : addr -> Memory value 
+              | Store : addr -> value -> Memory unit.
+
+        HasExit 
+            Exit :=
+                Done : Exit void
+    *)
+
+Context {E' : Type -> Type}.
+Context {HasRegs : Reg -< E'}.
+Context {HasMemory : Memory -< E'}.
+Context {HasExit : Exit -< E'}.
+
+Definition E := Reg +' Memory +' Exit +' E'.
+
+Notation denote_instr := (denote_instr (E := E)).
+Notation denote_bk := (denote_bk (E := E)).
+Notation denote_bks := (denote_bks (E := E)).
+Notation denote_asm := (denote_asm (E := E)).
+
+(*Notation "⟦ t ⟧" := (denote_asm t).*)
+
+
+(* now all the denote functions use our effect E *)
+
+Definition bb0_itree : itree E (fin 1) 
+    := denote_asm (raw_asm_block bb0) f0.
+
+Definition bb1_itree : itree E (fin 1) 
+    := denote_asm (raw_asm_block bb1) f0.
+
+(* but what does bb0 look like as an itree? 
+  lets explore that by stepping through the denotation *)
+Definition den_bb0 : itree E (fin 1).
+    eassert (bb0_itree ≈ _).
+    - unfold bb0_itree.
+      setoid_rewrite raw_asm_block_correct.
+      unfold bb0.
+      setoid_rewrite denote_after.
+      unfold denote_br.
+      unfold denote_list.
+      Undo 8.
+      assert (
+            bb0_itree
+         ≈ 
+            denote_instr (Imov 3 (Oimm 4)) ;; exit).
+        - unfold denote_instr. 
+          unfold denote_operand.
+          simpl. 
+        Undo 5.
+        exact ((v <- Ret 4;; trigger (SetReg 3 v));; exit).
+Defined.
+
+(*based on that exercise 
+    we can see what bb1 is as an itree *)
+Definition den_bb1 : itree E (fin 1) :=  
+(
+    lv <- trigger (GetReg 1);; 
+    rv <- trigger (GetReg 2);; 
+    trigger (SetReg 3 (lv + rv)));;
+    exit.
+
+(* so lets prove these statements *)
+
+Lemma bb0Itree : bb0_itree ≈ den_bb0.
+Proof.
+    (* first we reduce bb0_itree *)
+    unfold bb0_itree.
+    rewrite raw_asm_block_correct.
+    unfold denote_bk. 
+    cbn.
+    (* and see that it is equal to den_bb0*)
+    unfold den_bb0.
+    reflexivity.
+Qed.
+
+Lemma bb1Itree : bb1_itree ≈ den_bb1.
+Proof.
+    unfold bb1_itree.
+    rewrite raw_asm_block_correct.
+    unfold denote_bk. 
+    cbn.
+    unfold den_bb1.
+    reflexivity.
+Qed.
+
+
+Remark cantProve : den_bb0 ≈ den_bb1.
+ unfold den_bb0.
+ unfold den_bb1.
+(* we can already see they are 
+    syntactically disimilar...*)
+ eapply eutt_clo_bind.
+ 2:{ intros ; reflexivity. } 
+(* we can't go any further
+   without interpreting what SetReg and GetReg mean.
+*)
+Abort.
+
+(*  We can't even show that these instructions 
+    are bisimilar
+
+ i1:   r3 := r1 + r2
+
+ i2:   r3 := r2 + r1
+*)
+Definition i1 : instr := Iadd 3 1 (Oreg 2).
+Definition i2 : instr := Iadd 3 2 (Oreg 1).
+
+
+Example alsoCantProve : 
+    denote_instr i1
+≈
+    denote_instr i2.
+ unfold denote_instr ; simpl.
+ Abort.
+
+(* lets say the initial memory is empty 
+   and that the initial registers are 
+        r1 := 2 
+        r2 := 3
+        
+
+    then the final memory is still empty
+    and the final registers are 
+        r1 := 2
+        r2 := 3
+        r3 := 5
+        *)
+
+Definition mem : memory := [].
+Definition startReg : registers := 
+[
+    (1,2);
+    (2,3)
+].
+Definition endReg : registers := 
+[
+    (3,5);
+    (1,2);
+    (2,3)
+].
+
+Definition result {E} : itree E (memory * (registers * unit))
+    := Ret (mem , (endReg , tt)).
+
+Notation "x ≋ y" := ((eutt rel_asm) x y)(at level 50).
+
+(* we need to interpret these instructions! *)
+Example interpret_i1 : 
+    interp_asm (denote_instr i1) mem startReg 
+    ≋ 
+    result.
+
+    (* first denote instruction 1 as an itree*)
+    unfold i1.
+    unfold denote_instr ; simpl.
+    (* then start interpreting the events *)
+    rewrite interp_asm_GetReg.
+    rewrite interp_asm_GetReg; simpl.
+    rewrite interp_asm_SetReg'; cbn.
+    (* now all the events have been interpreted 
+        see if it equals the result *)
+    unfold result.
+    unfold startReg.
+    unfold alist_add; unfold alist_remove; simpl.
+    unfold endReg.
+    (* the results match! *)
+    reflexivity.
+Qed.
+
+
+(* manually evaluating things can get annoying
+    so we can automate that with metaprogramming / tactics!
+*)
+Ltac getsetRegMem := 
+    match goal with 
+    (* get reg *)
+    | |- (interp_asm 
+           (_ <- trigger (GetReg _);; _)  _ _)
+           ≋ _
+        => setoid_rewrite interp_asm_GetReg
+    | |-    _ ≋ 
+            (interp_asm 
+                (_ <- trigger (GetReg _);; _) 
+                _ _)
+        => setoid_rewrite interp_asm_GetReg
+    (* set reg *)
+    | |-    (interp_asm
+                (trigger (SetReg _ _);; _) _ _ )
+            ≋ _
+        => setoid_rewrite interp_asm_SetReg
+    | |- 
+            _ ≋
+            (interp_asm
+                (trigger (SetReg _ _);; _)  _ _ )
+            
+    => setoid_rewrite interp_asm_SetReg
+    end.
+
+Ltac eval_interp' :=
+        getsetRegMem
+    ||
+        setoid_rewrite bind_ret_ 
+    ||
+        setoid_rewrite bind_bind.
+    
+Ltac eval_interp := 
+    repeat eval_interp'.
+
+(* lets now show that our original basic blocks are 
+    bisimilar when starting in a particular state 
+    
+    bb0: 
+        r3 := 4
+    
+    bb1: 
+        r3 := r1 + r2
+    *)
 
 (*   
     initial register state 
@@ -95,272 +343,39 @@ Definition initialRegState : registers :=
     (1,2);
     (2,2)
 ].
-(* empty *)
+(* initial memory state  *)
 Definition initialMemState : memory := [].
 
+Definition bb0_interpreted : itree _ _
+    := interp_asm 
+        bb0_itree 
+        initialMemState  
+        initialRegState.
 
-Definition denbb0 : itree E (fin 1) :=  
-(
-    (v <- Ret 4;; 
-    trigger (SetReg 3 v)
-    )
-    ;; exit
-).
+Definition bb1_interpreted  : itree _ _ 
+    := interp_asm 
+        bb1_itree 
+        initialMemState 
+        initialRegState.
 
-
-Definition denbb1 : itree E (fin 1) :=  
-(
-    lv <- trigger (GetReg 1);; 
-    rv <- trigger (GetReg 2);; 
-    trigger (SetReg 3 (lv + rv)));;
-    exit.
-
-Definition denbb0NoExit : itree E (fin 1) :=  
-(
-    v <- Ret 4;; 
-    trigger (SetReg 3 v);;
-    Ret (f0)
-).
-
-
-Definition denbb1NoExit : itree E (fin 1) :=  
-(
-    lv <- trigger (GetReg 1);; 
-    rv <- trigger (GetReg 2);; 
-    trigger (SetReg 3 (lv + rv));;
-    Ret f0
-).
-
-Lemma bb0Itree : asm0 f0 ≈ denbb0.
+Example demo : 
+    bb0_interpreted ≋ bb1_interpreted.
 Proof.
-    unfold asm0.
-    unfold denbb0.
-    rewrite raw_asm_block_correct.
-    unfold denote_bk. 
+    unfold bb0_interpreted.
+    setoid_rewrite bb0Itree ;unfold den_bb0.
+    eval_interp.
+
+    unfold bb1_interpreted.
+    setoid_rewrite bb1Itree ;unfold den_bb1.
+    eval_interp.
+    (* all effects are evaluated
+        now we reduce the register maps 
+        to check if they are the same*)
+    cbn.
+    (* and they are!*)
     reflexivity.
 Qed.
-
-Lemma bb1Itree : asm1 f0 ≈ denbb1.
-Proof.
-    unfold asm1.
-    rewrite raw_asm_block_correct.
-    unfold denote_bk. 
-    cbn.
-    reflexivity.
-Qed.
-
-Lemma bb0ItreeEQNoExit : asm0 f0 = denbb0NoExit.
-Admitted.
-Lemma bb1ItreeEQNoExit : asm1 f0 = denbb1NoExit.
-Admitted.
-
-(* still no.. using their eq_asm_EQ relation
-Lemma foo : @eq_asm_EQ E _ _ _  (raw_asm_block bb0)
-(raw_asm_block bb1).
-Proof.
-    unfold eq_asm_EQ.
-    setoid_rewrite denbb0.
-*)
-
-(* cheating way *)
-Lemma bb0ItreeEQ : asm0 f0 = denbb0.
-Admitted.
-Lemma bb1ItreeEQ : asm1 f0 = denbb1.
-Admitted.
-
-
-Lemma interp_asm_exit : forall (t : itree E unit),
-    (interp_asm exit) ≡ (interp_asm (t ;; Ret tt)).
-Proof.
-    intros.
-    unfold EQ_asm.
-    intros.
-    unfold interp_asm at 1.
-    eapply interp_map_proper; try typeclasses eauto ; auto.
-    unfold exit.
-    setoid_rewrite interp_vis.
-    eapply interp_map_proper; try typeclasses eauto ; auto.
-Admitted.
-
-
-Lemma wtf :  
-    @interp_asm E nat exit initialMemState initialRegState 
-    = Ret (initialMemState,(initialRegState,9)).
-Proof.
-    intros.
-    unfold initialMemState.
-    unfold initialRegState.
-    unfold interp_asm.
-    unfold interp_map.
-    unfold interp_state.
-Admitted.
-
-Lemma wtf2 : forall r m, 
-    @interp_asm E nat exit m r = Ret (m,(r,9)).
-Proof.
-    intros.
-    unfold interp_asm.
-    unfold interp_map.
-    unfold exit.
-    unfold interp_map.
-    unfold interp_state.
-Admitted.
-
-(*
-Lemma foo : forall (t : ktree_fin E 1 1) r m,
-    eutt rel_asm 
-        (interp_asm (t ;; exit)m r)
-        (interp_asm t m r ;; interp_asm exit m r).
-*)      
-
-Definition my_EQ (t1 t2 : ktree_fin E 1 1) : Prop :=
-    (eutt rel_asm)
-        (interp_asm (t1 f0) initialMemState initialRegState)
-        (interp_asm (t2 f0) initialMemState initialRegState).
-
-
-(* cheating:
-    - removing Exit from asm programs
-    - force substituting in denoted asm *)
-Lemma demo : my_EQ asm0 asm1.
-Proof.
-    unfold my_EQ.
-
-    (* wait... this works!*)
-    Check bb0Itree.
-    setoid_rewrite bb0Itree.
-    unfold denbb0.
-    setoid_rewrite bind_ret_l.
-    rewrite interp_asm_SetReg.
-
-    setoid_rewrite bb1Itree.
-    unfold denbb1.
-    setoid_rewrite bind_bind.
-    setoid_rewrite interp_asm_GetReg.
-    setoid_rewrite bind_bind.
-    setoid_rewrite interp_asm_GetReg.
-    rewrite interp_asm_SetReg.
-
-    (* wtf to do with exit *)
-    (* evaluation to the rescue 
-       we can do this since we provided concrete 
-       register and memory states
-    *)
-    cbn.
-    reflexivity.
-Qed.
-(*  This proof is for the no exit version 
-    (* no exit *)
-    Restart. (* Undo. *)
-    unfold my_EQ.
-
-    rewrite bb0ItreeEQNoExit.
-    unfold denbb0NoExit.
-    setoid_rewrite bind_ret_l.
-    rewrite interp_asm_SetReg.
-    setoid_rewrite interp_asm_ret.
-
-    rewrite bb1ItreeEQNoExit.
-    unfold denbb1NoExit.
-    rewrite interp_asm_GetReg.
-    rewrite interp_asm_GetReg.
-    rewrite interp_asm_SetReg.
-    setoid_rewrite interp_asm_ret.
-    unfold ret.
-    cbn.
-    rewrite <- eutt_Ret.
-    unfold rel_asm.
-    constructor.
-    - reflexivity.
-    - constructor.
-    * reflexivity.
-    * reflexivity.
-Qed.   
-*) 
 End basicdemo.
-
-Module debug.
-(* does fixing an E break things? *)
-Definition bb1 : block (fin 2):= 
-after [
-    Imov 1 (Oimm 0)
-] (Bbrz 1 f0 (fS f0)).
-
-Definition a_bb1 : asm 1 2 := raw_asm_block bb1.
-
-Context {E' : Type -> Type}.
-Context {HasRegs : Reg -< E'}.
-Context {HasMemory : Memory -< E'}.
-Context {HasExit : Exit -< E'}.
-
-Definition E := Reg +' Memory +' Exit +' E'.
-
-Notation denote_bk := (denote_bk (E := E)).
-Notation denote_bks := (denote_bks (E := E)).
-Notation denote_asm := (denote_asm (E := E)).
-
-
-Lemma den_bb1 : denote_asm a_bb1 ⩯
-(fun _ : fin 1 =>
- (
-    v <- Ret 0;; 
-    trigger (SetReg 1 v));;
-    val <- trigger (GetReg 1);;
-    (if val : nat
-    then Ret f0 
-    else Ret (fS f0))).
-Proof. 
-    unfold a_bb1.
-    setoid_rewrite raw_asm_block_correct_lifted.
-    unfold bb1.
-    reflexivity.
-Qed.
-
-Lemma pointfree (p: asm 1 2)(t :ktree_fin E 1 2) :
-    denote_asm p ⩯ t ->
-    denote_asm p f0 ≈ t f0.
-Admitted.
-
-Lemma den_bb1_pt : 
-    denote_asm a_bb1 f0 
-≈
-    (fun (_ : fin 1) => 
- (
-    v <- Ret 0;; 
-    trigger (SetReg 1 v));;
-    val <- trigger (GetReg 1);;
-    (if val : nat
-    then Ret f0 
-    else Ret (fS f0))) (f0 : fin 1).
-Proof.
-    apply pointfree.
-    setoid_rewrite den_bb1.
-    reflexivity.
-Qed.
-
-
-(**
-Global Instance fack {B : Type}: (Proper
-(eutt (E := E) rel_asm ==>
- eutt (E := E) rel_asm ==> Basics.flip Basics.impl)
-(eutt eq)).
-Admitted.
-*)
-Lemma interp_asm_bb1 : 
-(interp_asm (denote_asm a_bb1 f0) [] []) 
-≈
-(interp_asm (denote_asm a_bb1 f0) [] []) 
-.
-Proof.
-    rewrite den_bb1_pt.
-    Check interp_asm_ret.
-
-    setoid_rewrite bind_bind.
-    setoid_rewrite bind_ret_.
- Admitted.   
-  (*  setoid_rewrite interp_asm_SetReg . *)
-
-End debug.
 
 Module deadbranch.
 
@@ -520,26 +535,7 @@ Definition prog2 : asm 1 1 := seq_asm a_bb1' (seq_asm a_bb3' a_bb4').
         r2 := r2 + 1 
 *)
 
-(* to talk about bisimilarity of these programs
-    we need to denote them as itrees
 
-    to do that, we need to determine what effects (E) we are using.
-
-    We will work with an effect E that 
-        HasRegs:
-            Reg  :=
-	            GetReg : reg -> Reg value 
-              | SetReg : reg -> value -> Reg unit.
-
-        HasMemory:
-            Memory := 
-                Load : addr -> Memory value 
-              | Store : addr -> value -> Memory unit.
-
-        HasExit 
-            Exit :=
-                Done : Exit void
-    *)
 Print Exit.
 Context {E' : Type -> Type}.
 Context {HasRegs : Reg -< E'}.
@@ -937,79 +933,6 @@ unfold CategoryOps.cat, Cat_sub, CategoryOps.cat, Cat_Kleisli; simpl.
 reflexivity.
 Qed.
 
-    
-(*
-Lemma blarg : (denote_asm prog1 f0) ≈  Ret f0.
-Proof.
-    setoid_rewrite den_iprog1_point.
-    cbn.
-*)
-(*
-Check interp_asm (E := E).
-Lemma wtf {r m x r' m' x'}: interp_asm
-(trigger (SetReg 1 0);;
- Ret(m , (r , x)))
-[] [] ≈ Ret (m', (r', x')).
-*)
-
-(*
-Lemma interp_asm_bb1 (t : itree (Exit +' E') (memory * (registers * fin 2))): 
-(interp_asm (denote_asm a_bb1 f0) [] []) 
-≈
-  t.
-Proof.
-    rewrite den_bb1_pt.
-    Check interp_asm_ret.
-
-    setoid_rewrite bind_bind.
-    setoid_rewrite bind_ret_.
-    
-    setoid_rewrite interp_asm_SetReg .
-
-    Check @interp_asm_SetReg E (fin 2) _ 1 0 [] [].
-
-
-    setoid_rewrite (@interp_asm_SetReg E (fin 2) _ 1 0 [] []).
-
-    setoid_rewrite interp_asm_ret.
-
-
-    setoid_rewrite interp_asm_bind.
-    setoid_rewrite interp_asm_bind.
-    setoid_rewrite interp_asm_ret.
-    Check interp_asm_ret.
-    setoid_rewrite bind_ret_.
-    Check reg.
-    Check @interp_asm_SetReg E (fin 2) _ 1 0 [] [].
-    
-    setoid_rewrite interp_asm_SetReg.
-    apply eutt_clo_bind.
-    Check eutt_clo_bind_l.
-    setoid_rewrite  eutt_clo_bind.
-
-    setoid_rewrite 
-
-
-    unfold ret.
-    simpl.
-
-    setoid_rewrite bind_ret_l.
-    setoid_rewrite interp_asm_SetReg.
-    Check bind_ret_.
-
-    rewrite interp_asm
-*)
-Print my_EQ.
-Compute exist.
-Print fin.
-Print fi'.
-Print exist.
-Compute @fi' 0.
-Compute @exist nat (fun j : nat => _) 0 .
-(*Lemma fiii : (f0 : fin (S 2)) = @fi' 0.
-*)
-(*(exist (fun j : nat => j < S n) p). *)
-(* show that the dead branch can be eliminated *)
 
 Lemma jesus : 
 @exist nat (fun j : nat => lt j 2) 0
@@ -1427,7 +1350,9 @@ constructor; typeclasses eauto.
 Qed.
 
 (* so by transitivity of the my_EQ relation,
-    we have prog1 ~ prog4 *)
+    we have prog1 ~ prog4 
+    
+    *)
 
 Lemma full_transform : my_EQ iprog1 iprog4.
 Proof.
@@ -1453,59 +1378,40 @@ Qed.
 *)
 
 Remark cantProve : iprog1 ≈ iprog2.
+ (* unfold the first program *)
  unfold iprog1.
  unfold kprog1.
- unfold prog1.
- Check raw_asm_block_correct_lifted.
- Check raw_asm_block_correct.
- rewrite seq_asm_correct_lifted.
+ setoid_rewrite den_iprog1_point.
+ (* unfold the second program *)
+ unfold iprog2.
+ unfold kprog2.
+ setoid_rewrite den_iprog2_point.
 
-Print eq_itree.
-Remark cantProve : kprog1 ⩯ kprog2.
- unfold kprog1. 
- unfold prog1. (* use ktrees, stupid binder*)
+(* we can already see they are 
+    syntactically disimilar..
+    
+    but lets continue into the first block
 
- (*     rewrite raw_asm_block_correct.
-    normally i'd use this.. 
-    note that it removes the application to "f0"
-
-    How can I get rid of the "f0"?
+    that is to say, 
+    see if bb1 ≈ bb1'
 *)
- rewrite seq_asm_correct.
- 
- unfold a_bb1.
- rewrite raw_asm_block_correct_lifted.
- rewrite denote_bk_corect.
-
- setoid_rewrite loop_asm_correct.
-(*  we cannot prove
-        iprog1 ≈ iprog2
-
-    That is because ≈ only says when two programs are syntacticaly similar
-
-
-
-
-
-
-
-    Definition rel_asm {B} : memory * (registers * B) -> memory * (registers * B) -> Prop :=
-  prod_rel EQ_memory (prod_rel (EQ_registers 0) eq).
-
-we cannot say that iprog1 and iprog2 are bisimilar *)
-
-(* asm programs denoted as ktrees *)
-
-(* concrete initial state *)
-
-
-Definition my_EQ (t1 t2 : ktree_fin E 1 1) : Prop :=
-    (eutt rel_asm)
-        (interp_asm (t1 f0) initialMemSta(**
-        Definition iprog1_denoted : itree E (fin 1).
-        apply iprog1.
-        *)te initialRegState)
-        (interp_asm (t2 f0) initialMemState initialRegState).
+ eapply eutt_clo_bind.
+ 1:{
+ (* unfold bb1 and bb1' *) 
+ setoid_rewrite den_bb1_pt.
+ setoid_rewrite den_bb1'_pt.
+ eapply eutt_clo_bind.
+ 1:{ eapply eutt_clo_bind.
+ 1:{ setoid_rewrite <- eutt_Ret; reflexivity. }
+ intros.
+ rewrite H.
+ reflexivity. }
+  intros.
+  (* at this point we see that
+  we'd have to be able to interpret the 
+  GetReg effect to show that bb1 and bb1' 
+  are bisimilar *)
+Abort.
 
 
 
@@ -1519,64 +1425,3 @@ Definition deadbranch_block {lbl} (bb : block lbl) :=
     match b with 
     | bbb
 
-
-End deadbranch.
-
-(* 
-cruft 
-
-(*
-
-
-Remark den_prog1 : iprog1 ≈ bar f0.
-    unfold iprog1.
-    unfold kprog1.
-    apply pointfree.
-
-    unfold prog1.
-
-    setoid_rewrite seq_asm_correct.
-    setoid_rewrite den_bb1.
-
-    unfold bottom.
-    setoid_rewrite seq_asm_correct.
-    setoid_rewrite den_bb4.
-
-    unfold middle.
-    setoid_rewrite app_asm_correct.
-    setoid_rewrite den_bb2.
-    setoid_rewrite den_bb3.
-
-
-    apply pointed.
-    
-    cbn.
-
-
-Admitted.
-
-Check to_bif.
-Definition den_prog1 : itree E (fin 1):= 
-y  <-
-    ((v <- Ret 0;; 
-      trigger (SetReg 1 v));;
-     val <- trigger (GetReg 1);;
-    (if val : nat 
-    then Ret (f0 : fin (1 + 1)) 
-    else Ret ((fS f0): fin (1 + 1)))) : fin (1 + 1);;
-(y0 <- to_bif y;;
- case_
-   ((fun _ : fin 1 =>
-     (v <- Ret 3;; 
-     trigger (SetReg 2 v));; 
-     Ret f0) >>> inl_)
-   ((fun _ : fin 1 =>
-     (v <- Ret 4;; 
-     trigger (SetReg 2 v));; 
-     Ret f0) >>> inr_)
-   y0);;
-(lv <- trigger (GetReg 2);;
- rv <- Ret 1;; 
- trigger (SetReg 2 (lv + rv)))
- ;; exit.
-*)*)
