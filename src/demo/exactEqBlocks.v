@@ -86,8 +86,21 @@ Definition bb1 : block (fin 1) :=
 Definition asm0 : asm 1 1 := raw_asm_block bb0.
 Definition asm1 : asm 1 1 := raw_asm_block bb1.
 
-(* summun an effect type for this example*)
+(*
+   we can denote each instruction as Itrees using some 
+   effect type E where the types of effects we have are
+
+   E:= 
+    | GetReg 
+    | SetReg 
+    | Load
+    | Store
+    | Done 
+   *)
+
+(* summon an effect type for this example*)
 Notation E := Utils.utils.E.
+
 
 (* how about showing that asm0 and ams1 are bisimilar?
    first we have to denote them as itrees *)
@@ -104,19 +117,18 @@ unfold den_asm0 ; unfold asm0.
 unfold den_asm1 ; unfold asm1.
 
 (*denote_asm (raw_asm_block b) f0 ≈ denote_bk b*)
-rewrite raw_asm_block_correct.
+rewrite raw_asm_block_correct;
 rewrite raw_asm_block_correct.
 (* now we compute the denotation of bb0 and bb1 as 
    interaction trees  *)
-unfold bb0.
-unfold bb1.
+unfold bb0;
+unfold bb1;
 setoid_rewrite denote_after.
 unfold denote_br .
 unfold denote_list.
-unfold denote_bk.
 unfold traverse_.
 unfold denote_instr.
-unfold denote_operand.
+unfold denote_operand;
 simpl; repeat setoid_rewrite bind_bind.
 
 (* now that we've computed the denotation 

@@ -193,6 +193,8 @@ Context {E : Type -> Type}.
 Definition den_asm0 :itree E (fin 1) := denote_asm asm0 f0.
 Definition den_asm1 :itree E (fin 1) := denote_asm asm1 f0.
 
+Print eqit_Vis. 
+
 Ltac eutt_clo_bind_eq := 
         apply (@eutt_clo_bind _ _ _ _ _ _ eq).
 (*≈ means eutt eq *)

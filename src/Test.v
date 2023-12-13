@@ -22,8 +22,6 @@ From ITree Require Import
 
 
 
-Definition n : nat := 3.
-
 (*Modifications to get this to parse
   - wrap strings in quotes
   - dropped metadata

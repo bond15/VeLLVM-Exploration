@@ -117,6 +117,9 @@ Remark CantProve :
  eutt_clo_bind_eq.
  (* stuck !
  trigger (GetReg 1) ≈ trigger (GetReg 2)
+
+  apply eqit_Vis.
+ Error: Unable to unify "subevent nat (GetReg 2)" with "subevent nat (GetReg 1)".
  no way to prove this without saying what GetReg does!
  *)
  Abort.

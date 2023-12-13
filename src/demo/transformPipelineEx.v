@@ -99,8 +99,8 @@ program2:
     bb1:
         r1 := 0
         Bjmp bb3
-    bb3:
-        r2 := 4
+    bb2:
+        r2 := 3
         Bjmp bb4
     bb4:
         r2 := r2 + 1
@@ -110,7 +110,7 @@ program3:
 
     bb5:
         r1 := 0
-        r2 := 4
+        r2 := 3
         r2 := r2 + 1
 
 after constant propogation & constant folding 
@@ -118,7 +118,7 @@ program4:
 
     bb6:
         r1 := 0
-        r2 := 5
+        r2 := 4
         
 *)
 
@@ -155,7 +155,7 @@ Definition a_bb4 : asm 2 1 := raw_asm (fun _ => bb4).
 
 
 Definition middle : asm (1 + 1) (1 + 1) 
-    := app_asm a_bb3 a_bb2. (* tensor product *)
+    := app_asm a_bb2 a_bb3. (* tensor product *)
 Definition bottom : asm (1 + 1) 1
     := seq_asm middle a_bb4. (* loop combinator + renaming *)
 Definition prog1 : asm 1 1 
@@ -188,9 +188,9 @@ after [
     Imov 1 (Oimm 0)
 ] (Bjmp f0).
 
-Definition bb3' : block (fin 1) := 
+Definition bb2' : block (fin 1) := 
 after [
-    Imov 2 (Oimm 4)
+    Imov 2 (Oimm 3)
 ] (Bjmp f0).
 
 Definition bb4' : block (fin 1) := 
@@ -200,21 +200,21 @@ after [
 
 (* turn those basic blocks into assembly *)
 Definition a_bb1' : asm 1 1 := raw_asm_block bb1'.
-Definition a_bb3' : asm 1 1 := raw_asm_block bb3'.
+Definition a_bb2' : asm 1 1 := raw_asm_block bb2'.
 Definition a_bb4' : asm 1 1 := raw_asm_block bb4'.
 
 (* tie the assembly programs together*)
 Definition prog2 : asm 1 1 := 
         seq_asm  a_bb1' 
-        (seq_asm a_bb3' 
+        (seq_asm a_bb2' 
                  a_bb4').
 
 (* prog2 defines this assembly program
     bb1':
         r1 := 0
         Bjmp bb3'
-    bb3':
-        r2 := 4
+    bb2':
+        r2 := 3
         Bjmp bb4'
     bb4':
         r2 := r2 + 1 
@@ -288,12 +288,12 @@ Lemma den_bb1' : denote_asm a_bb1' f0 ≈
 Proof. denBlock a_bb1' bb1'. Qed.
 
 
-Lemma den_bb3' : denote_asm a_bb3' f0
+Lemma den_bb2' : denote_asm a_bb2' f0
 ≈
-(   v <- Ret 4;; 
+(   v <- Ret 3;; 
     trigger (SetReg 2 v));; 
     Ret f0.
-Proof. denBlock a_bb3' bb3'. Qed.
+Proof. denBlock a_bb2' bb2'. Qed.
 
 
 Lemma den_bb4' : denote_asm a_bb4' f0
@@ -310,8 +310,8 @@ Lemma den_prog1 :
 ≈ 
     (denote_asm a_bb1 >>>
     (bimap 
-        (denote_asm a_bb3) 
-        (denote_asm a_bb2) >>>
+        (denote_asm a_bb2) 
+        (denote_asm a_bb3) >>>
     denote_asm a_bb4)) f0.
 Proof.
     apply pointfree.
@@ -328,7 +328,7 @@ Lemma den_prog2 :
     denote_asm prog2 
 ⩯ 
     denote_asm a_bb1' >>>
-    (denote_asm a_bb3' >>>
+    (denote_asm a_bb2' >>>
     denote_asm a_bb4').
 Proof.
     unfold prog2.
@@ -341,7 +341,7 @@ Lemma den_prog2':
     denote_asm prog2 f0
 ≈
     (denote_asm a_bb1' >>>
-    (denote_asm a_bb3' >>>
+    (denote_asm a_bb2' >>>
     denote_asm a_bb4')) f0.
 Proof.
     apply pointed.
@@ -351,7 +351,7 @@ Qed.
 
 Lemma den_iprog1_point : iprog1 ≈ 
 (y <- denote_asm a_bb1 f0;;
-y0 <- bimap (denote_asm a_bb3) (denote_asm a_bb2) y;;
+y0 <- bimap (denote_asm a_bb2) (denote_asm a_bb3) y;;
 denote_asm a_bb4 y0).
 Proof.    
 unfold iprog1.
@@ -365,7 +365,7 @@ Qed.
 
 Lemma den_iprog2_point : iprog2 ≈ 
 (y <- denote_asm a_bb1' f0;;
-y0 <- denote_asm a_bb3' y;;
+y0 <- denote_asm a_bb2' y;;
 denote_asm a_bb4' y0).
 Proof.    
 unfold iprog2.
@@ -399,8 +399,8 @@ Proof.
     (* Determine next block  *)
     replace (fi' _) with (f0 : fin 1) by
       (apply unique_fin; simpl; auto).
-    (* process bb3 *)
-    setoid_rewrite den_bb3.
+    (* process bb2 *)
+    setoid_rewrite den_bb2.
     interp_asm.
     (* process input to bb4 
         (to determine which branch jump came from)
@@ -421,8 +421,8 @@ Proof.
     (* process bb1' *)
     setoid_rewrite den_bb1'.
     interp_asm.
-    (* process bb3' *)
-    setoid_rewrite den_bb3'.
+    (* process bb2' *)
+    setoid_rewrite den_bb2'.
     interp_asm.
     (* process bb4' *)
     setoid_rewrite den_bb4'.
@@ -455,8 +455,8 @@ after dead branch
 bb1:
     r1 := 0
     Bjmp bb3
-bb3:
-    r2 := 4
+bb2:
+    r2 := 3
     Bjmp bb4
 bb4:
     r2 := r2 + 1
@@ -466,7 +466,7 @@ bonus: after block fusion
 
 bb5:
     r1 := 0
-    r2 := 4
+    r2 := 3
     r2 := r2 + 1
 
 *)
@@ -474,7 +474,7 @@ bb5:
 Definition bb5 : block (fin 1) := 
 after [
     Imov 1 (Oimm 0);
-    Imov 2 (Oimm 4);
+    Imov 2 (Oimm 3);
     Iadd 2 2 (Oimm 1)
 ] (Bhalt).
 
@@ -486,7 +486,7 @@ Lemma den_bb5 : denote_asm a_bb5 f0
 ≈
 (
     (v <- Ret 0;; trigger (SetReg 1 v));;
-    (v <- Ret 4;; trigger (SetReg 2 v));;
+    (v <- Ret 3;; trigger (SetReg 2 v));;
     (lv <- trigger (GetReg 2);;
     rv <- Ret 1;; trigger (SetReg 2 (lv + rv)));; exit
 ).
@@ -510,8 +510,8 @@ Proof.
     (* interp bb1' *)
     setoid_rewrite den_bb1'.
     interp_asm.
-    (* interp bb3' *)
-    setoid_rewrite den_bb3'.
+    (* interp bb2' *)
+    setoid_rewrite den_bb2'.
     interp_asm.
     (* interp bb4' *)
     setoid_rewrite den_bb4'.
@@ -536,7 +536,7 @@ Qed.
 
 bb5:
     r1 := 0
-    r2 := 4
+    r2 := 3
     r2 := r2 + 1
 
 after constant propogation
@@ -544,14 +544,14 @@ and constant folding
 
 bb6: 
     r1 := 0
-    r2 := 5
+    r2 := 4
 
 *)
 
 Definition bb6 : block (fin 1) := 
 after [
     Imov 1 (Oimm 0);
-    Imov 2 (Oimm 5)
+    Imov 2 (Oimm 4)
 ] Bhalt.
 
 Definition a_bb6 : asm 1 1 := raw_asm_block bb6.
@@ -559,7 +559,7 @@ Definition a_bb6 : asm 1 1 := raw_asm_block bb6.
 Lemma den_bb6: denote_asm a_bb6 f0
 ≈
 ((v <- Ret 0;; trigger (SetReg 1 v));;
- (v <- Ret 5;; trigger (SetReg 2 v));; 
+ (v <- Ret 4;; trigger (SetReg 2 v));; 
  exit).
 Proof. denBlock a_bb6 bb6. Qed.
 
@@ -569,9 +569,9 @@ EQ_registers 0 regs1 regs2 ->
 @eq_map _ _ _ _ 0
   (add 2
      (lookup_default 2 0
-        (add 2 4 (add 1 0 regs1)) + 1)
-     (add 2 4 (add 1 0 regs1)))
-  (add 2 5 (add 1 0 regs2)).
+        (add 2 3 (add 1 0 regs1)) + 1)
+     (add 2 3 (add 1 0 regs1)))
+  (add 2 4 (add 1 0 regs2)).
 Admitted. 
 
 Definition program4 (m : memory)(r : registers) 
@@ -597,18 +597,18 @@ Proof.
     interp_asm.
 
     (* program 3 perfroms the updates
-        (alist_add 2 5 
         (alist_add 2 4 
+        (alist_add 2 3 
         (alist_add 1 0 [])))
 
        program 4 performs the updates
-        (alist_add 2 5 
+        (alist_add 2 4 
         (alist_add 1 0 []))
 
         since 
-            r2 := 5 
+            r2 := 4 
         shaddows
-            r2 :=4
+            r2 := 3
         
         these two updates are equal!
 
