@@ -98,7 +98,7 @@ program2:
 
     bb1:
         r1 := 0
-        Bjmp bb3
+        Bjmp bb2
     bb2:
         r2 := 3
         Bjmp bb4
@@ -212,7 +212,7 @@ Definition prog2 : asm 1 1 :=
 (* prog2 defines this assembly program
     bb1':
         r1 := 0
-        Bjmp bb3'
+        Bjmp bb2'
     bb2':
         r2 := 3
         Bjmp bb4'
@@ -454,7 +454,7 @@ after dead branch
 
 bb1:
     r1 := 0
-    Bjmp bb3
+    Bjmp bb2
 bb2:
     r2 := 3
     Bjmp bb4

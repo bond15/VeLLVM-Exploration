@@ -115,6 +115,7 @@ Remark CantProve :
  unfold itree_i1; unfold itree_i2; unfold denote_instr ; simpl.
  (* try to peel off the first GetReg *)
  eutt_clo_bind_eq.
+ unfold trigger.
  (* stuck !
  trigger (GetReg 1) ≈ trigger (GetReg 2)
 
@@ -223,9 +224,10 @@ Proof.
     unfold i1.
     unfold denote_instr ; simpl.
     (* then start interpreting the events *)
-    rewrite interp_asm_GetReg ; cbn.
-    rewrite interp_asm_GetReg; cbn.
-    rewrite interp_asm_SetReg'; cbn.
+    Check interp_asm_GetReg.
+    rewrite interp_asm_GetReg ; cbn. (*performs lookup for r1, gets x*)
+    rewrite interp_asm_GetReg; cbn.  (*performs lookup for r2, gets y*)
+    rewrite interp_asm_SetReg'; cbn. (*sets r3 to x + y*)
     unfold startReg.
 
     (* now all the events have been interpreted 
@@ -252,13 +254,19 @@ Proof.
     (* denote the instructions as itrees *)
     unfold i1,i2 ; simpl.
     (* interpret the events *)
-    eval_interp ; setoid_rewrite interp_asm_SetReg' ; cbn.
+    setoid_rewrite interp_asm_GetReg; cbn.
+    setoid_rewrite interp_asm_GetReg; cbn.
+    setoid_rewrite interp_asm_SetReg'.
     (* show that the register maps are equal 
        we know that they are since addition is comutative
     *)
-    setoid_rewrite plus_comm at 1.
+    apply eqit_Ret.
+    constructor.
+    - cbn. reflexivity.
+    - constructor.
+    * setoid_rewrite plus_comm at 2. reflexivity.
+    * cbn. reflexivity.
     (* now they are exactly equal! *)
-    reflexivity.
 Qed.
 
 End bisimilar_instruction.

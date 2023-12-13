@@ -176,6 +176,7 @@ Qed.
     
     Here is a much shorter proof.
     *)
+Check eutt_clo_bind.    
 Theorem short_ExactEqualBlocks : den_asm0 ≈ den_asm1.
 Proof.
 (* compute the denotation as itrees *)
